@@ -1,0 +1,53 @@
+import assert from 'node:assert/strict';
+import test from 'node:test';
+import { parseRecipeInput, ValidationError } from '../src/validate.ts';
+
+test('requires a title', () => {
+  assert.throws(() => parseRecipeInput({ title: '   ' }), ValidationError);
+  assert.throws(() => parseRecipeInput(null), ValidationError);
+});
+
+test('drops blank items, fills ids and keeps checked state', () => {
+  const r = parseRecipeInput({
+    title: ' Pancakes ',
+    ingredients: [
+      { id: 'a', text: ' 2 eggs ', checked: true },
+      { text: '1 cup flour' },
+      { id: 'b', text: '   ' },
+    ],
+    steps: [{ text: 'Mix.', ingredientIds: ['a'] }, { text: '' }],
+  });
+  assert.equal(r.title, 'Pancakes');
+  assert.equal(r.ingredients.length, 2);
+  assert.deepEqual(r.ingredients[0], { id: 'a', text: '2 eggs', checked: true });
+  assert.equal(r.ingredients[1].checked, false);
+  assert.ok(r.ingredients[1].id.length > 0);
+  assert.equal(r.steps.length, 1);
+  assert.deepEqual(r.steps[0].ingredientIds, ['a']);
+});
+
+test('removes step links to ingredients that do not exist and de-duplicates ids', () => {
+  const r = parseRecipeInput({
+    title: 'T',
+    ingredients: [
+      { id: 'same', text: 'a' },
+      { id: 'same', text: 'b' },
+    ],
+    steps: [{ text: 'x', ingredientIds: ['same', 'same', 'ghost'] }],
+  });
+  assert.notEqual(r.ingredients[0].id, r.ingredients[1].id);
+  assert.deepEqual(r.steps[0].ingredientIds, ['same']);
+});
+
+test('only accepts http(s) URLs for the source and image', () => {
+  assert.throws(() => parseRecipeInput({ title: 'T', sourceUrl: 'javascript:alert(1)' }), ValidationError);
+  assert.throws(() => parseRecipeInput({ title: 'T', image: 'not a url' }), ValidationError);
+  const r = parseRecipeInput({ title: 'T', sourceUrl: 'https://example.com/r' });
+  assert.equal(r.sourceUrl, 'https://example.com/r');
+});
+
+test('turns empty optional fields into undefined', () => {
+  const r = parseRecipeInput({ title: 'T', servings: '  ', prepTime: '10 min' });
+  assert.equal(r.servings, undefined);
+  assert.equal(r.prepTime, '10 min');
+});
