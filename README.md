@@ -9,6 +9,7 @@ A personal recipe app. Paste a link to a recipe and Recipig saves just the recip
 - **Saved recipes.** Imported recipes are stored and listed so you can come back to them.
 - **Sections.** Ingredients and steps can be grouped under labels such as "Brine" or "Sauce". Imports keep the page's labels; in the editor, type a label in an item's Section box (items with the same label are grouped).
 - **Edit.** Change the title, times, ingredients, steps and sections; add, remove and reorder steps.
+- **Batch size.** Buttons at the top of a recipe (1x, 2x, 3x, 4x) multiply every ingredient amount, both in the ingredient list and in each step's ingredient reminder. Fractions stay fractions (3/4 cup doubled is 1 1/2 cups) and units follow along (1 cup becomes 2 cups, 1 egg becomes 2 eggs). Servings scale too. Your saved recipe is never changed.
 - **Shopping checkboxes.** Tick off ingredients as you buy them; ticks are saved.
 - **Ingredients alongside each step.** Each step has an expandable section repeating the quantities of the ingredients it mentions (for "mix the eggs with the cheese" you'll see "2 large eggs" and "3/4 cup sharp cheddar cheese"). Links are detected automatically on import and can be corrected in the editor.
 
@@ -42,7 +43,8 @@ Recipes are stored in `backend/data/recipes.json` (git-ignored). Set `DATA_DIR` 
 ## Tests
 
 ```bash
-cd backend && npm test
+cd backend && npm test    # API, importer, storage
+cd frontend && npm test   # batch-size maths
 ```
 
 ## Layout
@@ -60,4 +62,5 @@ frontend/   Angular app (standalone components, signals)
 
 - Import works for sites that publish structured recipe data, which is most big recipe sites. Pages without it are rejected with a clear message.
 - Pages that need JavaScript to show the recipe, or that block automated requests, may not import.
+- Batch size only multiplies ingredient lines (and servings). Amounts written inside the step text ("add 1 cup of water") are left as written, and odd phrasing can slip through, so glance at the scaled list before you shop.
 - Ingredient-to-step matching is keyword based. It's good, not perfect, so use the editor to fix a link. When two ingredients share a name (salt in both the brine and the seasoning), the step's section decides which one it shows.

@@ -6,7 +6,8 @@
     "ng": "ng",
     "start": "ng serve",
     "build": "ng build",
-    "watch": "ng build --watch --configuration development"
+    "watch": "ng build --watch --configuration development",
+    "test": "node --import tsx --test src/app/*.test.ts"
   },
   "dependencies": {
     "@angular/common": "^20.0.0",
@@ -23,6 +24,7 @@
     "@angular/build": "^20.0.0",
     "@angular/cli": "^20.0.0",
     "@angular/compiler-cli": "^20.0.0",
+    "tsx": "^4.19.0",
     "typescript": "~5.8.2"
   }
 }

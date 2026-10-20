@@ -3,6 +3,7 @@ import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { Ingredient, Recipe, Step, groupBySection } from './models';
 import { RecipeService, errorMessage, hostOf } from './recipe.service';
+import { scaleIngredientText } from './scale';
 
 @Component({
   selector: 'app-recipe-detail',
@@ -30,7 +31,7 @@ import { RecipeService, errorMessage, hostOf } from './recipe.service';
 
       <ul class="meta">
         @if (r.servings) {
-          <li>Serves: {{ r.servings }}</li>
+          <li>Serves: {{ servingsText() }}</li>
         }
         @if (r.prepTime) {
           <li>Prep: {{ r.prepTime }}</li>
@@ -49,6 +50,22 @@ import { RecipeService, errorMessage, hostOf } from './recipe.service';
           <a [href]="r.sourceUrl" target="_blank" rel="noopener noreferrer">{{ host(r.sourceUrl) || r.sourceUrl }}</a>
         </p>
       }
+
+      <div class="scale" role="group" aria-labelledby="scale-label">
+        <span class="scale-label" id="scale-label">Batch size</span>
+        <div class="scale-options">
+          @for (m of multipliers; track m) {
+            <button type="button" class="scale-btn" [attr.aria-pressed]="multiplier() === m" (click)="setMultiplier(m)">
+              {{ m }}x
+            </button>
+          }
+        </div>
+        @if (multiplier() > 1) {
+          <span class="muted small">
+            Ingredient amounts are multiplied by {{ multiplier() }}. Amounts written inside step text aren't changed.
+          </span>
+        }
+      </div>
 
       @if (saveError()) {
         <p class="error" role="alert">Couldn't save your changes: {{ saveError() }}</p>
@@ -71,7 +88,7 @@ import { RecipeService, errorMessage, hostOf } from './recipe.service';
               <li>
                 <label class="check">
                   <input type="checkbox" [checked]="ing.checked" (change)="toggleIngredient(ing.id)" />
-                  <span [class.done]="ing.checked">{{ ing.text }}</span>
+                  <span [class.done]="ing.checked">{{ amount(ing) }}</span>
                 </label>
               </li>
             }
@@ -114,7 +131,7 @@ import { RecipeService, errorMessage, hostOf } from './recipe.service';
                   @if (isOpen(step.id)) {
                     <ul class="step-ingredients">
                       @for (ing of linked(step); track ing.id) {
-                        <li>{{ ing.text }}</li>
+                        <li>{{ amount(ing) }}</li>
                       }
                     </ul>
                   }
@@ -140,6 +157,17 @@ export class RecipeDetail implements OnInit {
   readonly open = signal<ReadonlySet<string>>(new Set());
 
   readonly host = hostOf;
+
+  /** Batch sizes offered; the recipe as written is 1x. */
+  readonly multipliers = [1, 2, 3, 4] as const;
+  readonly multiplier = signal<number>(1);
+
+  /** Ingredient lines with their amounts multiplied. Only for display: the saved recipe is never changed. */
+  private readonly scaledAmounts = computed(() => {
+    const factor = this.multiplier();
+    return new Map((this.recipe()?.ingredients ?? []).map((i) => [i.id, scaleIngredientText(i.text, factor)]));
+  });
+  readonly servingsText = computed(() => scaleIngredientText(this.recipe()?.servings ?? '', this.multiplier()));
 
   readonly ingredientGroups = computed(() => groupBySection(this.recipe()?.ingredients ?? []));
   readonly stepGroups = computed(() => groupBySection(this.recipe()?.steps ?? []));
@@ -170,6 +198,15 @@ export class RecipeDetail implements OnInit {
     } finally {
       this.loading.set(false);
     }
+  }
+
+  setMultiplier(value: number): void {
+    this.multiplier.set(value);
+  }
+
+  /** An ingredient as it should read at the chosen batch size. */
+  amount(ingredient: Ingredient): string {
+    return this.scaledAmounts().get(ingredient.id) ?? ingredient.text;
   }
 
   linked(step: Step): Ingredient[] {
