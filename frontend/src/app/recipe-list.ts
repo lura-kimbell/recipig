@@ -1,41 +1,21 @@
 import { Component, OnInit, inject, signal } from '@angular/core';
-import { FormsModule } from '@angular/forms';
-import { Router, RouterLink } from '@angular/router';
+import { RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { Recipe } from './models';
 import { RecipeService, errorMessage, hostOf } from './recipe.service';
 
 @Component({
   selector: 'app-recipe-list',
-  imports: [FormsModule, RouterLink],
+  imports: [RouterLink],
   template: `
-    <section class="card">
-      <h1>Import a recipe</h1>
-      <p class="muted">Paste a link to a recipe page. Recipig keeps just the ingredients and steps.</p>
-      <div class="row">
-        <input
-          type="url"
-          class="grow"
-          placeholder="https://example.com/best-pancakes"
-          aria-label="Recipe link"
-          [(ngModel)]="url"
-          (keydown.enter)="importRecipe()"
-          [disabled]="importing()"
-        />
-        <button type="button" class="btn primary" (click)="importRecipe()" [disabled]="importing() || !url.trim()">
-          {{ importing() ? 'Importing…' : 'Import' }}
-        </button>
-      </div>
-      @if (error()) {
-        <p class="error" role="alert">{{ error() }}</p>
-      }
-    </section>
-
-    <h2>Your recipes</h2>
+    <h1>Your recipes</h1>
+    @if (error()) {
+      <p class="error" role="alert">{{ error() }}</p>
+    }
     @if (loading()) {
       <p class="muted">Loading…</p>
-    } @else if (recipes().length === 0) {
-      <p class="muted">Nothing saved yet. Import your first recipe above.</p>
+    } @else if (recipes().length === 0 && !error()) {
+      <p class="muted">Nothing saved yet. Use <strong>New Recipe</strong> above to write one or import one from a link.</p>
     } @else {
       <ul class="grid">
         @for (r of recipes(); track r.id) {
@@ -58,13 +38,10 @@ import { RecipeService, errorMessage, hostOf } from './recipe.service';
 })
 export class RecipeList implements OnInit {
   private readonly service = inject(RecipeService);
-  private readonly router = inject(Router);
 
   readonly recipes = signal<Recipe[]>([]);
   readonly loading = signal(true);
-  readonly importing = signal(false);
   readonly error = signal('');
-  url = '';
 
   readonly host = hostOf;
 
@@ -75,22 +52,6 @@ export class RecipeList implements OnInit {
       this.error.set(errorMessage(e));
     } finally {
       this.loading.set(false);
-    }
-  }
-
-  async importRecipe(): Promise<void> {
-    const url = this.url.trim();
-    if (!url || this.importing()) return;
-    this.error.set('');
-    this.importing.set(true);
-    try {
-      const recipe = await firstValueFrom(this.service.importFromUrl(url));
-      this.url = '';
-      await this.router.navigate(['/recipes', recipe.id]);
-    } catch (e) {
-      this.error.set(errorMessage(e));
-    } finally {
-      this.importing.set(false);
     }
   }
 }

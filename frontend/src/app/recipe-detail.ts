@@ -1,7 +1,7 @@
 import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
-import { Ingredient, Recipe, Step } from './models';
+import { Ingredient, Recipe, Step, groupBySection } from './models';
 import { RecipeService, errorMessage, hostOf } from './recipe.service';
 
 @Component({
@@ -59,16 +59,24 @@ import { RecipeService, errorMessage, hostOf } from './recipe.service';
           <h2>Ingredients</h2>
           <span class="muted small">{{ purchased() }} of {{ r.ingredients.length }} purchased</span>
         </div>
-        <ul class="plain">
-          @for (ing of r.ingredients; track ing.id) {
-            <li>
-              <label class="check">
-                <input type="checkbox" [checked]="ing.checked" (change)="toggleIngredient(ing.id)" />
-                <span [class.done]="ing.checked">{{ ing.text }}</span>
-              </label>
-            </li>
+        @if (r.ingredients.length === 0) {
+          <p class="muted">No ingredients yet.</p>
+        }
+        @for (group of ingredientGroups(); track $index) {
+          @if (group.section) {
+            <h3 class="group-title">{{ group.section }}</h3>
           }
-        </ul>
+          <ul class="plain">
+            @for (ing of group.items; track ing.id) {
+              <li>
+                <label class="check">
+                  <input type="checkbox" [checked]="ing.checked" (change)="toggleIngredient(ing.id)" />
+                  <span [class.done]="ing.checked">{{ ing.text }}</span>
+                </label>
+              </li>
+            }
+          </ul>
+        }
         @if (purchased() > 0) {
           <button type="button" class="btn ghost small" (click)="clearChecks()">Clear checkmarks</button>
         }
@@ -83,30 +91,38 @@ import { RecipeService, errorMessage, hostOf } from './recipe.service';
             </button>
           }
         </div>
-        <ol class="steps">
-          @for (step of r.steps; track step.id) {
-            <li>
-              <p>{{ step.text }}</p>
-              @if (linked(step).length > 0) {
-                <button
-                  type="button"
-                  class="link-btn"
-                  (click)="toggleStep(step.id)"
-                  [attr.aria-expanded]="isOpen(step.id)"
-                >
-                  {{ isOpen(step.id) ? '▾' : '▸' }} Ingredients for this step ({{ linked(step).length }})
-                </button>
-                @if (isOpen(step.id)) {
-                  <ul class="step-ingredients">
-                    @for (ing of linked(step); track ing.id) {
-                      <li>{{ ing.text }}</li>
-                    }
-                  </ul>
-                }
-              }
-            </li>
+        @if (r.steps.length === 0) {
+          <p class="muted">No steps yet.</p>
+        }
+        @for (group of stepGroups(); track $index) {
+          @if (group.section) {
+            <h3 class="group-title">{{ group.section }}</h3>
           }
-        </ol>
+          <ol class="steps">
+            @for (step of group.items; track step.id) {
+              <li>
+                <p>{{ step.text }}</p>
+                @if (linked(step).length > 0) {
+                  <button
+                    type="button"
+                    class="link-btn"
+                    (click)="toggleStep(step.id)"
+                    [attr.aria-expanded]="isOpen(step.id)"
+                  >
+                    {{ isOpen(step.id) ? '▾' : '▸' }} Ingredients for this step ({{ linked(step).length }})
+                  </button>
+                  @if (isOpen(step.id)) {
+                    <ul class="step-ingredients">
+                      @for (ing of linked(step); track ing.id) {
+                        <li>{{ ing.text }}</li>
+                      }
+                    </ul>
+                  }
+                }
+              </li>
+            }
+          </ol>
+        }
       </section>
     }
   `,
@@ -125,6 +141,8 @@ export class RecipeDetail implements OnInit {
 
   readonly host = hostOf;
 
+  readonly ingredientGroups = computed(() => groupBySection(this.recipe()?.ingredients ?? []));
+  readonly stepGroups = computed(() => groupBySection(this.recipe()?.steps ?? []));
   readonly purchased = computed(() => this.recipe()?.ingredients.filter((i) => i.checked).length ?? 0);
   readonly linkedStepIds = computed(
     () => this.recipe()?.steps.filter((s) => s.ingredientIds.length > 0).map((s) => s.id) ?? [],

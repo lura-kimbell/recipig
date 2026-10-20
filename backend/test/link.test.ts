@@ -43,3 +43,20 @@ test('returns nothing when no ingredient is mentioned', () => {
 test('ignores ingredient lines with no usable words', () => {
   assert.deepEqual(linkIngredientsToStep('Stir well.', ings('1 cup', '')), []);
 });
+
+test("breaks ties between same-named ingredients using the step's section", () => {
+  const list = [
+    { id: 'a', text: '30 g kosher salt', section: 'Brine' },
+    { id: 'b', text: '1 tbsp kosher salt', section: 'Seasoning' },
+  ];
+  assert.deepEqual(linkIngredientsToStep('Whisk in the salt.', list, 'Brine'), ['a']);
+  assert.deepEqual(linkIngredientsToStep('Season with salt.', list, 'Seasoning'), ['b']);
+  // Without a matching section there is nothing to break the tie with.
+  assert.deepEqual(linkIngredientsToStep('Add salt.', list), ['a', 'b']);
+  assert.deepEqual(linkIngredientsToStep('Add salt.', list, 'Other'), ['a', 'b']);
+});
+
+test('a lone matching ingredient is kept even when it is in another section', () => {
+  const list = [{ id: 'a', text: '1 chicken breast', section: 'Brine' }];
+  assert.deepEqual(linkIngredientsToStep('Sear the breast.', list, 'Cooking'), ['a']);
+});

@@ -11,10 +11,16 @@ export class NoRecipeError extends Error {
   }
 }
 
+/** One ingredient line or step, with the sub-heading it sat under (if any). */
+interface RawItem {
+  text: string;
+  section?: string;
+}
+
 interface RawRecipe {
   title: string;
-  ingredients: string[];
-  steps: string[];
+  ingredients: RawItem[];
+  steps: RawItem[];
   servings?: string;
   prepTime?: string;
   cookTime?: string;
@@ -59,17 +65,32 @@ function stringToSteps(s: string): string[] {
     .filter(Boolean);
 }
 
-/** recipeInstructions can be a string, a list of strings, HowToStep objects, or HowToSections of steps. */
-function flattenInstructions(v: unknown): string[] {
+/**
+ * recipeInstructions can be a string, a list of strings, HowToStep objects, or
+ * HowToSections of steps. A section's name is kept as the label of its steps.
+ */
+function flattenInstructions(v: unknown, section?: string): RawItem[] {
   if (v == null) return [];
-  if (typeof v === 'string') return stringToSteps(v);
-  if (Array.isArray(v)) return v.flatMap(flattenInstructions);
+  if (typeof v === 'string') return stringToSteps(v).map((t) => ({ text: t, section }));
+  if (Array.isArray(v)) return v.flatMap((item) => flattenInstructions(item, section));
   if (isObj(v)) {
-    if (v.itemListElement != null) return flattenInstructions(v.itemListElement);
+    if (v.itemListElement != null) return flattenInstructions(v.itemListElement, text(v.name) || section);
     const t = v.text ?? v.name;
-    return typeof t === 'string' ? stringToSteps(t) : [];
+    return typeof t === 'string' ? stringToSteps(t).map((s) => ({ text: s, section })) : [];
   }
   return [];
+}
+
+const plain = (lines: string[]): RawItem[] => lines.map((t) => ({ text: t }));
+
+/**
+ * Sections only help when they actually divide the recipe. If every item has
+ * the same label (a lone "Instructions" section, say) the label is noise.
+ */
+function dropSingleSection(items: RawItem[]): RawItem[] {
+  const labels = new Set(items.map((i) => i.section));
+  if (labels.size === 1 && items[0]?.section) return items.map(({ text: t }) => ({ text: t }));
+  return items;
 }
 
 /** ISO 8601 durations ("PT1H30M") to something readable ("1 hr 30 min"). */
@@ -151,7 +172,7 @@ function fromJsonLd($: cheerio.CheerioAPI, base?: string): RawRecipe | null {
     if (!node) continue;
     const candidate: RawRecipe = {
       title: text(node.name),
-      ingredients: toArray(node.recipeIngredient ?? node.ingredients).map(text).filter(Boolean),
+      ingredients: plain(toArray(node.recipeIngredient ?? node.ingredients).map(text).filter(Boolean)),
       steps: flattenInstructions(node.recipeInstructions),
       servings: formatYield(node.recipeYield),
       prepTime: formatDuration(node.prepTime),
@@ -187,10 +208,12 @@ function fromMicrodata($: cheerio.CheerioAPI, base?: string): RawRecipe | null {
 
   return {
     title: text(content('name')),
-    ingredients: [...prop('recipeIngredient').toArray(), ...prop('ingredients').toArray()]
-      .map((el) => text($(el).html()))
-      .filter(Boolean),
-    steps,
+    ingredients: plain(
+      [...prop('recipeIngredient').toArray(), ...prop('ingredients').toArray()]
+        .map((el) => text($(el).html()))
+        .filter(Boolean),
+    ),
+    steps: plain(steps),
     servings: formatYield(content('recipeYield')),
     prepTime: formatDuration(content('prepTime')),
     cookTime: formatDuration(content('cookTime')),
@@ -219,38 +242,65 @@ function stripNumbering(s: string): string {
   return s.replace(/^(?:step\s*)?\d+\s*[.):]\s+/i, '');
 }
 
+/** A short line that names a group of items ("Brine:", "For the sauce") rather than being one. */
+function isSectionLabel($p: Sel): boolean {
+  const t = squash($p.text());
+  if (!t || t.length >= 60) return false;
+  if (t.endsWith(':')) return true;
+  // Everything in the paragraph is bold: <p><strong>For the sauce</strong></p>
+  const kids = $p.children();
+  return kids.length === 1 && kids.is('strong, b') && squash(kids.text()) === t;
+}
+
+const cleanLabel = (s: string): string => squash(s).replace(/:$/, '').trim();
+
 /**
  * The list belonging to a heading: the list items (or, failing that, the
  * paragraphs) that follow it, up to the next heading of the same or higher
- * level. If the heading is wrapped in a container with nothing after it, the
- * search moves up a level, a few times.
+ * level. Sub-headings and bold "Brine:" style lines along the way become the
+ * section label of the items after them. If the heading is wrapped in a
+ * container with nothing after it, the search moves up a level, a few times.
  */
-function itemsAfterHeading($: cheerio.CheerioAPI, heading: Sel): string[] {
-  const sameOrHigher = HEADINGS.slice(0, headingLevel(heading)).join(',');
+function itemsAfterHeading($: cheerio.CheerioAPI, heading: Sel): RawItem[] {
+  const level = headingLevel(heading);
+  const sameOrHigher = HEADINGS.slice(0, level).join(',');
+  const subHeadings = HEADINGS.slice(level).join(',');
+  const candidates = ['li', 'p', ...HEADINGS.slice(level)].join(',');
   let node: Sel = heading;
 
   for (let climb = 0; climb < 3; climb++) {
-    const listItems: string[] = [];
-    const paragraphs: string[] = [];
+    const listItems: RawItem[] = [];
+    const paragraphs: RawItem[] = [];
+    let section: string | undefined;
 
     for (const sibling of node.nextAll().toArray()) {
       const $sibling = $(sibling);
       if ($sibling.is(sameOrHigher) || $sibling.find(sameOrHigher).length > 0) break;
 
-      const items = $sibling.is('li') ? $sibling : $sibling.find('li');
-      items.each((_, li) => {
-        const $li = $(li);
-        if ($li.find('li').length === 0) listItems.push(stripNumbering(cleanLine($li.html() ?? '')));
-      });
-      const paras = $sibling.is('p') ? $sibling : $sibling.find('p');
-      paras.each((_, p) => void paragraphs.push(stripNumbering(cleanLine($(p).html() ?? ''))));
+      // The sibling and everything inside it, in document order, so that a label is
+      // seen before the items that follow it.
+      for (const el of [sibling, ...$sibling.find('*').toArray()]) {
+        const $el = $(el);
+        if (!$el.is(candidates)) continue;
+        if (subHeadings && $el.is(subHeadings)) {
+          section = cleanLabel($el.text()) || undefined;
+        } else if ($el.is('li')) {
+          if ($el.find('li').length > 0) continue; // a wrapper around a nested list
+          const t = stripNumbering(cleanLine($el.html() ?? ''));
+          if (t) listItems.push({ text: t, section });
+        } else if ($el.closest('li').length === 0) {
+          // A paragraph: either a label for what follows, or a step in its own right.
+          if (isSectionLabel($el)) section = cleanLabel($el.text()) || undefined;
+          else {
+            const t = stripNumbering(cleanLine($el.html() ?? ''));
+            if (t) paragraphs.push({ text: t, section });
+          }
+        }
+      }
     }
 
-    const lists = listItems.filter(Boolean);
-    if (lists.length > 0) return lists;
-    // Paragraph-style recipes. Short lines ending in ":" are sub-headings ("Brine:"), not steps.
-    const prose = paragraphs.filter((p) => p && !(p.endsWith(':') && p.length < 60));
-    if (prose.length > 0) return prose;
+    if (listItems.length > 0) return dropSingleSection(listItems);
+    if (paragraphs.length > 0) return dropSingleSection(paragraphs);
 
     node = node.parent();
     if (node.length === 0 || node.is('body, html')) break;
@@ -258,11 +308,11 @@ function itemsAfterHeading($: cheerio.CheerioAPI, heading: Sel): string[] {
   return [];
 }
 
-/** Items under the first heading whose text matches (sub-section labels such as "Brine:" are not kept). */
-function listUnderHeading($: cheerio.CheerioAPI, matcher: RegExp): string[] {
+/** Items under the first heading whose text matches, with their sub-section labels. */
+function listUnderHeading($: cheerio.CheerioAPI, matcher: RegExp): RawItem[] {
   for (const el of $(HEADINGS.join(',')).toArray()) {
     const $heading = $(el);
-    if (!matcher.test(squash($heading.text()).replace(/:$/, '').trim())) continue;
+    if (!matcher.test(cleanLabel($heading.text()))) continue;
     const found = itemsAfterHeading($, $heading);
     if (found.length > 0) return found;
   }
@@ -296,17 +346,25 @@ export function extractRecipe(html: string, sourceUrl?: string): RecipeDraft {
   const structured =
     found.find((r) => r && r.ingredients.length > 0 && r.steps.length > 0) ?? found.find((r) => r) ?? null;
 
-  const ingredientLines = structured?.ingredients.length
+  const ingredientItems = structured?.ingredients.length
     ? structured.ingredients
     : listUnderHeading($, INGREDIENTS_HEADING);
-  const stepLines = structured?.steps.length ? structured.steps : listUnderHeading($, STEPS_HEADING);
-  if (ingredientLines.length === 0 || stepLines.length === 0) throw new NoRecipeError();
+  const stepItems = dropSingleSection(
+    structured?.steps.length ? structured.steps : listUnderHeading($, STEPS_HEADING),
+  );
+  if (ingredientItems.length === 0 || stepItems.length === 0) throw new NoRecipeError();
 
-  const ingredients = ingredientLines.map((t) => ({ id: randomUUID(), text: t, checked: false }));
-  const steps = stepLines.map((t) => ({
+  const ingredients = ingredientItems.map((i) => ({
     id: randomUUID(),
-    text: t,
-    ingredientIds: linkIngredientsToStep(t, ingredients),
+    text: i.text,
+    checked: false,
+    ...(i.section ? { section: i.section } : {}),
+  }));
+  const steps = stepItems.map((s) => ({
+    id: randomUUID(),
+    text: s.text,
+    ingredientIds: linkIngredientsToStep(s.text, ingredients, s.section),
+    ...(s.section ? { section: s.section } : {}),
   }));
 
   return {

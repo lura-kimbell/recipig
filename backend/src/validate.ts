@@ -5,6 +5,7 @@ export class ValidationError extends Error {}
 
 const MAX_ITEMS = 300;
 const MAX_TEXT = 3000;
+const MAX_SECTION = 100;
 
 function isObject(v: unknown): v is Record<string, unknown> {
   return typeof v === 'object' && v !== null && !Array.isArray(v);
@@ -61,7 +62,8 @@ export function parseRecipeInput(body: unknown): RecipeDraft {
     if (!isObject(raw)) throw new ValidationError('Each ingredient must be an object.');
     const text = optionalString(raw.text, MAX_TEXT, 'ingredient text');
     if (!text) return [];
-    return [{ id: uniqueId(raw.id, ingredientIds), text, checked: raw.checked === true }];
+    const section = optionalString(raw.section, MAX_SECTION, 'section');
+    return [{ id: uniqueId(raw.id, ingredientIds), text, checked: raw.checked === true, ...(section ? { section } : {}) }];
   });
 
   const stepIds = new Set<string>();
@@ -71,7 +73,8 @@ export function parseRecipeInput(body: unknown): RecipeDraft {
     if (!text) return [];
     const linked = Array.isArray(raw.ingredientIds) ? raw.ingredientIds : [];
     const links = [...new Set(linked.filter((id): id is string => typeof id === 'string' && ingredientIds.has(id)))];
-    return [{ id: uniqueId(raw.id, stepIds), text, ingredientIds: links }];
+    const section = optionalString(raw.section, MAX_SECTION, 'section');
+    return [{ id: uniqueId(raw.id, stepIds), text, ingredientIds: links, ...(section ? { section } : {}) }];
   });
 
   return {

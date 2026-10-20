@@ -61,10 +61,6 @@ h3 {
   background: var(--card);
 }
 .brand {
-  display: block;
-  max-width: 860px;
-  margin: 0 auto;
-  padding: 0.8rem 1rem;
   font-weight: 700;
   font-size: 1.2rem;
   color: var(--ink);
@@ -330,4 +326,71 @@ details summary {
 }
 .small {
   font-size: 0.875rem;
+}
+
+/* Header and "New Recipe" menu */
+.topbar-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  max-width: 860px;
+  margin: 0 auto;
+  padding: 0.5rem 1rem;
+}
+.menu-wrap {
+  position: relative;
+}
+.menu {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 0.35rem);
+  z-index: 10;
+  min-width: 13rem;
+  margin: 0;
+  padding: 0.3rem;
+  list-style: none;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: 0 6px 20px rgb(0 0 0 / 0.15);
+}
+.menu a {
+  display: block;
+  padding: 0.5rem 0.75rem;
+  border-radius: 6px;
+  color: var(--ink);
+  text-decoration: none;
+}
+.menu a:hover,
+.menu a:focus-visible {
+  background: var(--tint);
+}
+
+/* Sections within ingredients and steps */
+.group-title {
+  margin: 0.9rem 0 0.2rem;
+  font-size: 0.95rem;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.group-title:first-of-type {
+  margin-top: 0.2rem;
+}
+.item-row {
+  flex-wrap: wrap;
+}
+.section-input {
+  width: 9rem;
+  flex: none;
+}
+.section-input.grow {
+  flex: 1;
+  min-width: 7rem;
+}
+@media (max-width: 560px) {
+  .section-input {
+    width: 100%;
+  }
 }

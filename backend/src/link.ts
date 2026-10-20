@@ -54,13 +54,19 @@ export function ingredientKeywords(text: string): string[] {
  * cheese"). When several ingredients share a head noun ("olive oil" and
  * "vegetable oil"), only the best-scoring ones are kept.
  *
+ * Ties are broken by section: when the step and some of the tied ingredients
+ * share a section ("Brine"), only those are kept, so a "salt" in the brine step
+ * doesn't also pull in the "salt" from the seasoning section.
+ *
  * Returns ingredient ids in the order the ingredients are listed.
  */
 export function linkIngredientsToStep(
   stepText: string,
-  ingredients: Pick<Ingredient, 'id' | 'text'>[],
+  ingredients: Pick<Ingredient, 'id' | 'text' | 'section'>[],
+  stepSection?: string,
 ): string[] {
   const stepTokens = new Set(tokens(stepText).map(singularize));
+  const sectionOf = new Map(ingredients.map((i) => [i.id, i.section]));
   const groups = new Map<string, { id: string; score: number }[]>();
 
   for (const ing of ingredients) {
@@ -77,7 +83,12 @@ export function linkIngredientsToStep(
   const keep = new Set<string>();
   for (const group of groups.values()) {
     const best = Math.max(...group.map((g) => g.score));
-    for (const g of group) if (g.score === best) keep.add(g.id);
+    let winners = group.filter((g) => g.score === best);
+    if (stepSection && winners.length > 1) {
+      const sameSection = winners.filter((g) => sectionOf.get(g.id) === stepSection);
+      if (sameSection.length > 0) winners = sameSection;
+    }
+    for (const g of winners) keep.add(g.id);
   }
   return ingredients.map((i) => i.id).filter((id) => keep.has(id));
 }

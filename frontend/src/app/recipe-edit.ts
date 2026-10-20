@@ -14,6 +14,10 @@ const blank = (): Recipe => ({
   updatedAt: '',
 });
 
+/**
+ * The recipe form. It edits an existing recipe at /recipes/:id/edit and, with
+ * route data `{ mode: 'create' }`, starts empty at /recipes/new.
+ */
 @Component({
   selector: 'app-recipe-edit',
   imports: [FormsModule, RouterLink],
@@ -24,8 +28,14 @@ const blank = (): Recipe => ({
       <p class="error" role="alert">{{ loadError() }}</p>
       <a routerLink="/">← Back to recipes</a>
     } @else {
-      <a class="back" [routerLink]="['/recipes', draft.id]">← Cancel</a>
-      <h1>Edit recipe</h1>
+      <a class="back" [routerLink]="cancelLink()">← Cancel</a>
+      <h1>{{ isNew() ? 'New recipe' : 'Edit recipe' }}</h1>
+
+      <datalist id="section-options">
+        @for (name of sectionOptions(); track name) {
+          <option [value]="name"></option>
+        }
+      </datalist>
 
       <section class="card stack">
         <label class="field">
@@ -54,11 +64,24 @@ const blank = (): Recipe => ({
 
       <section class="card stack">
         <h2>Ingredients</h2>
+        <p class="muted small">
+          Optionally give items a section (like "Brine" or "Sauce"); items with the same section are grouped together.
+        </p>
         @for (ing of draft.ingredients; track ing.id; let i = $index) {
-          <div class="row">
+          <div class="row item-row">
+            <input
+              class="section-input"
+              type="text"
+              list="section-options"
+              placeholder="Section"
+              [(ngModel)]="ing.section"
+              (change)="refreshSectionOptions()"
+              [attr.aria-label]="'Section for ingredient ' + (i + 1)"
+            />
             <input
               class="grow"
               type="text"
+              placeholder="e.g. 2 large eggs"
               [(ngModel)]="ing.text"
               [attr.aria-label]="'Ingredient ' + (i + 1)"
             />
@@ -81,8 +104,17 @@ const blank = (): Recipe => ({
         <h2>Steps</h2>
         @for (step of draft.steps; track step.id; let i = $index) {
           <div class="edit-step">
-            <div class="row">
-              <strong class="grow">Step {{ i + 1 }}</strong>
+            <div class="row item-row">
+              <strong>Step {{ i + 1 }}</strong>
+              <input
+                class="section-input grow"
+                type="text"
+                list="section-options"
+                placeholder="Section"
+                [(ngModel)]="step.section"
+                (change)="refreshSectionOptions()"
+                [attr.aria-label]="'Section for step ' + (i + 1)"
+              />
               <button
                 type="button"
                 class="btn ghost small"
@@ -127,9 +159,9 @@ const blank = (): Recipe => ({
       }
       <div class="row">
         <button type="button" class="btn primary" (click)="save()" [disabled]="saving()">
-          {{ saving() ? 'Saving…' : 'Save changes' }}
+          {{ saving() ? 'Saving…' : isNew() ? 'Create recipe' : 'Save changes' }}
         </button>
-        <a class="btn" [routerLink]="['/recipes', draft.id]">Cancel</a>
+        <a class="btn" [routerLink]="cancelLink()">Cancel</a>
       </div>
     }
   `,
@@ -142,12 +174,26 @@ export class RecipeEdit implements OnInit {
   /** A working copy; nothing is saved until the user presses Save. */
   draft: Recipe = blank();
 
+  readonly isNew = signal(false);
   readonly loading = signal(true);
   readonly loadError = signal('');
   readonly saving = signal(false);
   readonly saveError = signal('');
+  /** Where Cancel goes: the recipe being edited, or the list when creating. */
+  readonly cancelLink = signal<string[]>(['/']);
+  /** Section names already used in this recipe, offered as suggestions. */
+  readonly sectionOptions = signal<string[]>([]);
 
   async ngOnInit(): Promise<void> {
+    if (this.route.snapshot.data['mode'] === 'create') {
+      this.isNew.set(true);
+      this.draft = blank();
+      this.addIngredient();
+      this.addStep();
+      this.loading.set(false);
+      return;
+    }
+
     const id = this.route.snapshot.paramMap.get('id');
     if (!id) {
       this.loadError.set('Recipe not found.');
@@ -156,6 +202,8 @@ export class RecipeEdit implements OnInit {
     }
     try {
       this.draft = structuredClone(await firstValueFrom(this.service.get(id)));
+      this.cancelLink.set(['/recipes', this.draft.id]);
+      this.refreshSectionOptions();
     } catch (e) {
       this.loadError.set(errorMessage(e));
     } finally {
@@ -163,8 +211,17 @@ export class RecipeEdit implements OnInit {
     }
   }
 
+  refreshSectionOptions(): void {
+    const names = [...this.draft.ingredients, ...this.draft.steps]
+      .map((item) => item.section?.trim())
+      .filter((name): name is string => !!name);
+    this.sectionOptions.set([...new Set(names)]);
+  }
+
+  /** New items join the section of the one before them, which is usually what you want. */
   addIngredient(): void {
-    this.draft.ingredients.push({ id: newId(), text: '', checked: false });
+    const section = this.draft.ingredients.at(-1)?.section;
+    this.draft.ingredients.push({ id: newId(), text: '', checked: false, section });
   }
 
   removeIngredient(id: string): void {
@@ -173,7 +230,8 @@ export class RecipeEdit implements OnInit {
   }
 
   addStep(): void {
-    this.draft.steps.push({ id: newId(), text: '', ingredientIds: [] });
+    const section = this.draft.steps.at(-1)?.section;
+    this.draft.steps.push({ id: newId(), text: '', ingredientIds: [], section });
   }
 
   removeStep(id: string): void {
@@ -201,7 +259,8 @@ export class RecipeEdit implements OnInit {
     }
     this.saving.set(true);
     try {
-      const saved = await firstValueFrom(this.service.save(this.cleaned()));
+      const cleaned = this.cleaned();
+      const saved = await firstValueFrom(this.isNew() ? this.service.create(cleaned) : this.service.save(cleaned));
       await this.router.navigate(['/recipes', saved.id]);
     } catch (e) {
       this.saveError.set(errorMessage(e));
@@ -210,15 +269,20 @@ export class RecipeEdit implements OnInit {
     }
   }
 
-  /** Trim text, drop blank items and forget links to ingredients that were removed. */
+  /** Trim text, drop blank items and empty sections, and forget links to ingredients that were removed. */
   private cleaned(): Recipe {
     const ingredients = this.draft.ingredients
       .filter((i) => i.text.trim())
-      .map((i) => ({ ...i, text: i.text.trim() }));
+      .map((i) => ({ ...i, text: i.text.trim(), section: i.section?.trim() || undefined }));
     const known = new Set(ingredients.map((i) => i.id));
     const steps = this.draft.steps
       .filter((s) => s.text.trim())
-      .map((s) => ({ ...s, text: s.text.trim(), ingredientIds: s.ingredientIds.filter((id) => known.has(id)) }));
+      .map((s) => ({
+        ...s,
+        text: s.text.trim(),
+        section: s.section?.trim() || undefined,
+        ingredientIds: s.ingredientIds.filter((id) => known.has(id)),
+      }));
     return { ...this.draft, title: this.draft.title.trim(), ingredients, steps };
   }
 }

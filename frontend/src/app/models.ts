@@ -3,6 +3,8 @@ export interface Ingredient {
   text: string;
   /** Marked as purchased. */
   checked: boolean;
+  /** Group label such as "Brine"; items with the same label sit together. */
+  section?: string;
 }
 
 export interface Step {
@@ -10,6 +12,8 @@ export interface Step {
   text: string;
   /** Ingredients this step refers to, shown in its expandable section. */
   ingredientIds: string[];
+  /** Group label such as "Brine"; steps with the same label sit together. */
+  section?: string;
 }
 
 export interface Recipe {
@@ -25,4 +29,23 @@ export interface Recipe {
   steps: Step[];
   createdAt: string;
   updatedAt: string;
+}
+
+/** A recipe's content, as sent when creating one. */
+export type RecipeDraft = Omit<Recipe, 'id' | 'createdAt' | 'updatedAt'>;
+
+export interface Group<T> {
+  section?: string;
+  items: T[];
+}
+
+/** Split a list into runs of items that share a section label, keeping the original order. */
+export function groupBySection<T extends { section?: string }>(items: readonly T[]): Group<T>[] {
+  const groups: Group<T>[] = [];
+  for (const item of items) {
+    const last = groups[groups.length - 1];
+    if (last && last.section === item.section) last.items.push(item);
+    else groups.push({ section: item.section, items: [item] });
+  }
+  return groups;
 }

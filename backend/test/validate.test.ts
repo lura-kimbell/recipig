@@ -51,3 +51,21 @@ test('turns empty optional fields into undefined', () => {
   assert.equal(r.servings, undefined);
   assert.equal(r.prepTime, '10 min');
 });
+
+test('keeps section labels (trimmed) and leaves out empty ones', () => {
+  const r = parseRecipeInput({
+    title: 'T',
+    ingredients: [
+      { id: 'a', text: 'x', section: ' Brine ' },
+      { id: 'b', text: 'y', section: '   ' },
+    ],
+    steps: [{ text: 's', section: 'Sauce' }],
+  });
+  assert.equal(r.ingredients[0].section, 'Brine');
+  assert.equal('section' in r.ingredients[1], false);
+  assert.equal(r.steps[0].section, 'Sauce');
+});
+
+test('rejects a section label that is not text', () => {
+  assert.throws(() => parseRecipeInput({ title: 'T', ingredients: [{ text: 'x', section: 5 }] }), ValidationError);
+});

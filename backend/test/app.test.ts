@@ -88,3 +88,23 @@ test('rejects invalid recipe updates and unknown ids', async () => {
     assert.equal((await call('GET', '/api/nope')).status, 404);
   });
 });
+
+test('create a recipe from scratch, with sections', async () => {
+  await withServer(okPage, async (call) => {
+    const created = await call('POST', '/api/recipes', {
+      title: 'Toast',
+      ingredients: [{ id: 'i1', text: '2 slices bread', section: 'Base' }],
+      steps: [{ text: 'Toast the bread.', ingredientIds: ['i1'], section: 'Base' }],
+    });
+    assert.equal(created.status, 201);
+    assert.ok(created.json.id);
+    assert.equal(created.json.ingredients[0].section, 'Base');
+    assert.equal(created.json.steps[0].section, 'Base');
+    assert.deepEqual((await call('GET', `/api/recipes/${created.json.id}`)).json.steps[0].ingredientIds, ['i1']);
+
+    // A title is all a recipe needs; the rest can be filled in later.
+    assert.equal((await call('POST', '/api/recipes', { title: 'Blank' })).status, 201);
+    assert.equal((await call('POST', '/api/recipes', { title: '  ' })).status, 400);
+    assert.equal((await call('GET', '/api/recipes')).json.length, 2);
+  });
+});

@@ -1,6 +1,6 @@
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
-import { Recipe } from './models';
+import { Recipe, RecipeDraft } from './models';
 
 @Injectable({ providedIn: 'root' })
 export class RecipeService {
@@ -12,6 +12,10 @@ export class RecipeService {
 
   get(id: string) {
     return this.http.get<Recipe>(`/api/recipes/${encodeURIComponent(id)}`);
+  }
+
+  create(recipe: RecipeDraft) {
+    return this.http.post<Recipe>('/api/recipes', recipe);
   }
 
   importFromUrl(url: string) {

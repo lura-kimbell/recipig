@@ -95,14 +95,14 @@ export const STUB_JSONLD_PAGE = `<!DOCTYPE html><html><head>
 <p><strong>Brine:</strong></p>
 <ul role="list"><li>1 chicken breast</li><li>2 quarts (2L) water</li><li>30 g kosher salt</li></ul>
 <p><strong>Seasoning &amp; Cooking:</strong></p>
-<ul role="list"><li>2 lemons, juiced</li><li>&frac14; cup (60g) white wine</li></ul>
+<ul role="list"><li>2 lemons, juiced</li><li>&frac14; cup (60g) white wine</li><li>1 Tbsp (15g) kosher salt</li></ul>
 </article></div>
 <div class="directions-wrapper"><h2 class="heading m">Directions</h2>
 <div class="directions-list w-richtext">
 <p><strong>Brine:</strong></p>
 <ol role="list"><li>Whisk the salt into the water until dissolved.</li><li>Add the chicken breast and refrigerate for 6-8 hours. </li></ol>
 <p><strong>Seasoning &amp; Cooking:</strong></p>
-<ol role="list"><li>Deglaze the pan with white wine and lemon juice, then reduce.</li></ol>
+<ol role="list"><li>Deglaze the pan with white wine and lemon juice, then reduce.</li><li>Season the chicken with salt on both sides.</li></ol>
 </div></div></div>
 <div class="comments"><h2>Comments</h2><p>Made this last night, so good!</p></div>
 </body></html>`;
@@ -126,4 +126,15 @@ export const PARAGRAPH_STEPS_PAGE = `<html><head><title>Simple Pasta - Cook Blog
 <p>Step 2: Toss the spaghetti with the olive oil.</p>
 <h2>Notes</h2>
 <p>Keeps for three days.</p>
+</body></html>`;
+
+/** Sub-headings (h3) rather than bold labels, under h2 "Ingredients" and "Method". */
+export const SUBHEADINGS_PAGE = `<html><head><title>Saucy Chicken</title></head><body>
+<h2>Ingredients</h2>
+<h3>For the sauce</h3>
+<ul><li>1 cup tomatoes</li><li>2 cloves garlic</li></ul>
+<h3>For the chicken</h3>
+<ul><li>2 chicken thighs</li></ul>
+<h2>Method</h2>
+<ol><li>Simmer the tomatoes with the garlic.</li><li>Roast the chicken thighs.</li></ol>
 </body></html>`;

@@ -4,6 +4,8 @@ export interface Ingredient {
   text: string;
   /** Whether the user has marked this ingredient as purchased. */
   checked: boolean;
+  /** Optional group label such as "Brine" or "For the sauce". */
+  section?: string;
 }
 
 export interface Step {
@@ -11,6 +13,8 @@ export interface Step {
   text: string;
   /** Ingredients (by id) this step refers to; shown in the step's expandable section. */
   ingredientIds: string[];
+  /** Optional group label such as "Brine" or "For the sauce". */
+  section?: string;
 }
 
 export interface Recipe {

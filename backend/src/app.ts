@@ -28,6 +28,11 @@ export function createApp(store: RecipeStore, options: AppOptions = {}) {
     res.json(await store.list());
   });
 
+  // A recipe written by hand in the editor.
+  app.post('/api/recipes', async (req, res) => {
+    res.status(201).json(await store.create(parseRecipeInput(req.body)));
+  });
+
   // Declared before /api/recipes/:id so "import" isn't read as an id.
   app.post('/api/recipes/import', async (req, res) => {
     const url: unknown = req.body?.url;
