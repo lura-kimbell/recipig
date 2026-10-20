@@ -1,15 +1,19 @@
 import { Routes } from '@angular/router';
+import { AuthPage } from './auth-page';
+import { authGuard, guestGuard } from './auth.guard';
 import { RecipeDetail } from './recipe-detail';
 import { RecipeEdit } from './recipe-edit';
 import { RecipeImport } from './recipe-import';
 import { RecipeList } from './recipe-list';
 
 export const routes: Routes = [
-  { path: '', component: RecipeList },
-  { path: 'import', component: RecipeImport },
+  { path: 'login', component: AuthPage, canActivate: [guestGuard], data: { mode: 'login' } },
+  { path: 'register', component: AuthPage, canActivate: [guestGuard], data: { mode: 'register' } },
+  { path: '', component: RecipeList, canActivate: [authGuard] },
+  { path: 'import', component: RecipeImport, canActivate: [authGuard] },
   // Before recipes/:id so "new" isn't read as an id. The edit form doubles as the blank-recipe form.
-  { path: 'recipes/new', component: RecipeEdit, data: { mode: 'create' } },
-  { path: 'recipes/:id', component: RecipeDetail },
-  { path: 'recipes/:id/edit', component: RecipeEdit },
+  { path: 'recipes/new', component: RecipeEdit, canActivate: [authGuard], data: { mode: 'create' } },
+  { path: 'recipes/:id', component: RecipeDetail, canActivate: [authGuard] },
+  { path: 'recipes/:id/edit', component: RecipeEdit, canActivate: [authGuard] },
   { path: '**', redirectTo: '' },
 ];

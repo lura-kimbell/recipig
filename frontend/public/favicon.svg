@@ -1,1 +1,6 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y=".9em" font-size="90">🐷</text></svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <!-- A pig snout: a soft pink oval with two nostrils. -->
+  <ellipse cx="32" cy="32" rx="28" ry="22" fill="#ffb3c7" stroke="#d9728f" stroke-width="3"/>
+  <ellipse cx="21" cy="32" rx="5.5" ry="9" fill="#d9728f"/>
+  <ellipse cx="43" cy="32" rx="5.5" ry="9" fill="#d9728f"/>
+</svg>

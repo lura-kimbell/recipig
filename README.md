@@ -4,6 +4,7 @@ A personal recipe app. Paste a link to a recipe and Recipig saves just the recip
 
 ## Features
 
+- **Accounts.** Create an account with just a username and password (no email), log in and log out. Usernames are unique (Alice and alice are the same). Every recipe you import, create or edit belongs to your account, and nobody else can see it. There is no password reset, so pick one you'll remember.
 - **New Recipe menu.** The button in the header offers **Create New Recipe** (the edit form, empty) and **Import from URL**.
 - **Import from a URL.** Reads the recipe data that sites publish for search engines (schema.org JSON-LD, then microdata). If a page has none, or only a stub, it reads the lists under the page's "Ingredients" and "Directions" headings instead. You get the title, times, ingredients and steps only.
 - **Saved recipes.** Imported recipes are stored and listed so you can come back to them.
@@ -15,7 +16,13 @@ A personal recipe app. Paste a link to a recipe and Recipig saves just the recip
 
 ## Running it
 
-You need Node.js 20 or newer.
+You need Node.js 20 or newer and a MongoDB server. The quickest way to get one is Docker:
+
+```bash
+docker run -d --name recipig-mongo -p 127.0.0.1:27017:27017 -v recipig-mongo:/data/db mongo:7
+```
+
+(Or install MongoDB yourself, or use a free MongoDB Atlas cluster and set `MONGODB_URI`.)
 
 ```bash
 # Terminal 1: API on http://127.0.0.1:3000
@@ -38,13 +45,40 @@ cd frontend && npm run build
 cd ../backend && npm start     # http://127.0.0.1:3000
 ```
 
-Recipes are stored in `backend/data/recipes.json` (git-ignored). Set `DATA_DIR` to put them elsewhere. `PORT` and `HOST` are also configurable; the server listens on localhost only by default because it has no login.
+Settings (environment variables for the backend):
+
+| Variable | Default | What it does |
+| --- | --- | --- |
+| `MONGODB_URI` | `mongodb://127.0.0.1:27017` | Where MongoDB is |
+| `MONGODB_DB` | `recipig` | Database name |
+| `PORT`, `HOST` | `3000`, `127.0.0.1` | The server listens on localhost only by default, because it fetches web pages on behalf of logged-in users |
+| `COOKIE_SECURE` | off | Set to `true` when the site is served over https, so the login cookie is only sent securely |
+| `TRUST_PROXY` | off | Set (for example to `1`) when behind a reverse proxy, so login rate limiting sees real client addresses |
+
+Collections: `users`, `sessions` and `recipes`; the indexes are created on startup.
+
+### Moving over your old recipes
+
+Earlier versions kept everything in `backend/data/recipes.json`. Create your account in the app first, then copy those recipes into it:
+
+```bash
+cd backend
+npm run import-json -- yourusername            # or add a path to a recipes.json
+```
+
+Running it twice is safe: recipes already imported are skipped.
 
 ## Tests
 
 ```bash
-cd backend && npm test    # API, importer, storage
-cd frontend && npm test   # batch-size maths
+cd backend && npm test    # API, accounts, importer, storage
+cd frontend && npm test   # batch-size maths, safe redirects
+```
+
+The MongoDB storage tests are skipped unless you point them at a database (each test makes and drops its own temporary one):
+
+```bash
+cd backend && TEST_MONGODB_URI=mongodb://127.0.0.1:27017 npm test
 ```
 
 ## Layout
@@ -54,12 +88,16 @@ backend/    Express + TypeScript API
   src/extract.ts    pull the recipe out of a page's HTML
   src/link.ts       match step text to ingredients
   src/fetchPage.ts  download a page (refuses private/local addresses)
-  src/store.ts      JSON-file storage
+  src/stores.ts     storage interfaces (users, sessions, recipes)
+  src/mongoStores.ts  MongoDB implementation (memoryStores.ts is the test stand-in)
+  src/authRoutes.ts   register, login, logout, session lookup
+  scripts/importJson.ts  move an old recipes.json into an account
 frontend/   Angular app (standalone components, signals)
 ```
 
 ## Limitations
 
+- Accounts are deliberately simple: no email, no password reset or change, no account deletion. Login attempts are rate limited in memory (reset when the server restarts).
 - Import works for sites that publish structured recipe data, which is most big recipe sites. Pages without it are rejected with a clear message.
 - Pages that need JavaScript to show the recipe, or that block automated requests, may not import.
 - Batch size only multiplies ingredient lines (and servings). Amounts written inside the step text ("add 1 cup of water") are left as written, and odd phrasing can slip through, so glance at the scaled list before you shop.

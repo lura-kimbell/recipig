@@ -1,15 +1,35 @@
 import path from 'node:path';
 import { createApp } from './app.ts';
-import { RecipeStore } from './store.ts';
+import { connectMongo } from './mongoStores.ts';
 
 const port = Number(process.env.PORT ?? 3000);
-// Localhost only by default: this app fetches arbitrary URLs and has no login.
+// Localhost only by default: this app fetches arbitrary URLs for logged-in users.
 const host = process.env.HOST ?? '127.0.0.1';
-const dataDir = process.env.DATA_DIR ?? path.resolve(import.meta.dirname, '../data');
 const staticDir = process.env.STATIC_DIR ?? path.resolve(import.meta.dirname, '../../frontend/dist/frontend/browser');
+const mongoUri = process.env.MONGODB_URI ?? 'mongodb://127.0.0.1:27017';
+const mongoDb = process.env.MONGODB_DB ?? 'recipig';
+const secureCookie = process.env.COOKIE_SECURE === 'true';
+const trustProxy = process.env.TRUST_PROXY;
 
-const app = createApp(new RecipeStore(path.join(dataDir, 'recipes.json')), { staticDir });
+/** Hide any user:password@ part of the connection string before it is printed. */
+const redact = (text: string) => text.replace(/\/\/[^/@\s]*@/g, '//***@');
+
+let mongo;
+try {
+  mongo = await connectMongo(mongoUri, mongoDb);
+} catch (err) {
+  console.error(`Could not connect to MongoDB at ${redact(mongoUri)}.`);
+  console.error(redact(err instanceof Error ? err.message : String(err)));
+  console.error('Start MongoDB, or set MONGODB_URI. See the README for a one-line Docker command.');
+  process.exit(1);
+}
+
+const app = createApp(mongo.stores, {
+  staticDir,
+  secureCookie,
+  trustProxy: trustProxy === undefined ? undefined : /^\d+$/.test(trustProxy) ? Number(trustProxy) : trustProxy === 'true' ? true : trustProxy,
+});
 
 app.listen(port, host, () => {
-  console.log(`Recipig API listening on http://${host}:${port}`);
+  console.log(`Recipig API listening on http://${host}:${port} (database "${mongoDb}")`);
 });

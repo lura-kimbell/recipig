@@ -6,11 +6,13 @@
     "dev": "tsx watch src/index.ts",
     "start": "tsx src/index.ts",
     "test": "node --import tsx --test test/*.test.ts",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "import-json": "tsx scripts/importJson.ts"
   },
   "dependencies": {
     "cheerio": "^1.0.0",
-    "express": "^5.1.0"
+    "express": "^5.1.0",
+    "mongodb": "^6.18.0"
   },
   "devDependencies": {
     "@types/express": "^5.0.0",
