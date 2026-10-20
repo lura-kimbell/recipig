@@ -145,11 +145,11 @@ function findRecipeNode(value: unknown, depth = 0): Obj | null {
 }
 
 function fromJsonLd($: cheerio.CheerioAPI, base?: string): RawRecipe | null {
-  const scripts = $('script[type="application/ld+json"]').toArray();
-  for (const el of scripts) {
+  let firstFound: RawRecipe | null = null;
+  for (const el of $('script[type="application/ld+json"]').toArray()) {
     const node = findRecipeNode(parseJson($(el).text()));
     if (!node) continue;
-    return {
+    const candidate: RawRecipe = {
       title: text(node.name),
       ingredients: toArray(node.recipeIngredient ?? node.ingredients).map(text).filter(Boolean),
       steps: flattenInstructions(node.recipeInstructions),
@@ -159,8 +159,12 @@ function fromJsonLd($: cheerio.CheerioAPI, base?: string): RawRecipe | null {
       totalTime: formatDuration(node.totalTime),
       image: firstImage(node.image, base),
     };
+    // Some sites publish a stub (title and image, but no ingredients or steps).
+    // Keep looking for a complete one, and fall back to the stub for its details.
+    if (candidate.ingredients.length > 0 && candidate.steps.length > 0) return candidate;
+    firstFound ??= candidate;
   }
-  return null;
+  return firstFound;
 }
 
 /** Older sites mark recipes up with schema.org microdata instead of JSON-LD. */
@@ -196,6 +200,82 @@ function fromMicrodata($: cheerio.CheerioAPI, base?: string): RawRecipe | null {
 }
 
 // ---------------------------------------------------------------------------
+// Fallback: read the visible page under "Ingredients" / "Directions" headings
+// ---------------------------------------------------------------------------
+
+type Sel = cheerio.Cheerio<any>;
+
+const HEADINGS = ['h1', 'h2', 'h3', 'h4', 'h5', 'h6'];
+const INGREDIENTS_HEADING = /^(?:the\s+)?ingredients?(?:\s+list)?$/i;
+const STEPS_HEADING = /^(?:directions?|instructions?|method|preparation|steps?|how to make(?:\s+it)?)$/i;
+
+function headingLevel($el: Sel): number {
+  const name = ($el.get(0) as { name?: string } | undefined)?.name ?? '';
+  return Number(name.slice(1)) || 6;
+}
+
+/** Drop a leading "1." / "Step 2:" from a line of text. */
+function stripNumbering(s: string): string {
+  return s.replace(/^(?:step\s*)?\d+\s*[.):]\s+/i, '');
+}
+
+/**
+ * The list belonging to a heading: the list items (or, failing that, the
+ * paragraphs) that follow it, up to the next heading of the same or higher
+ * level. If the heading is wrapped in a container with nothing after it, the
+ * search moves up a level, a few times.
+ */
+function itemsAfterHeading($: cheerio.CheerioAPI, heading: Sel): string[] {
+  const sameOrHigher = HEADINGS.slice(0, headingLevel(heading)).join(',');
+  let node: Sel = heading;
+
+  for (let climb = 0; climb < 3; climb++) {
+    const listItems: string[] = [];
+    const paragraphs: string[] = [];
+
+    for (const sibling of node.nextAll().toArray()) {
+      const $sibling = $(sibling);
+      if ($sibling.is(sameOrHigher) || $sibling.find(sameOrHigher).length > 0) break;
+
+      const items = $sibling.is('li') ? $sibling : $sibling.find('li');
+      items.each((_, li) => {
+        const $li = $(li);
+        if ($li.find('li').length === 0) listItems.push(stripNumbering(cleanLine($li.html() ?? '')));
+      });
+      const paras = $sibling.is('p') ? $sibling : $sibling.find('p');
+      paras.each((_, p) => void paragraphs.push(stripNumbering(cleanLine($(p).html() ?? ''))));
+    }
+
+    const lists = listItems.filter(Boolean);
+    if (lists.length > 0) return lists;
+    // Paragraph-style recipes. Short lines ending in ":" are sub-headings ("Brine:"), not steps.
+    const prose = paragraphs.filter((p) => p && !(p.endsWith(':') && p.length < 60));
+    if (prose.length > 0) return prose;
+
+    node = node.parent();
+    if (node.length === 0 || node.is('body, html')) break;
+  }
+  return [];
+}
+
+/** Items under the first heading whose text matches (sub-section labels such as "Brine:" are not kept). */
+function listUnderHeading($: cheerio.CheerioAPI, matcher: RegExp): string[] {
+  for (const el of $(HEADINGS.join(',')).toArray()) {
+    const $heading = $(el);
+    if (!matcher.test(squash($heading.text()).replace(/:$/, '').trim())) continue;
+    const found = itemsAfterHeading($, $heading);
+    if (found.length > 0) return found;
+  }
+  return [];
+}
+
+/** "Perfect Chicken Piccata Recipe | Chef Joshua Weissman" -> "Perfect Chicken Piccata Recipe". */
+function pageTitle($: cheerio.CheerioAPI): string {
+  const raw = $('meta[property="og:title"]').attr('content') ?? $('title').first().text();
+  return squash(raw).split(/\s+[|–—-]\s+/)[0];
+}
+
+// ---------------------------------------------------------------------------
 // Public entry point
 // ---------------------------------------------------------------------------
 
@@ -203,27 +283,40 @@ function fromMicrodata($: cheerio.CheerioAPI, base?: string): RawRecipe | null {
  * Pull just the recipe out of a web page. Recipe sites embed the recipe as
  * structured data for search engines; reading that gives us the title,
  * ingredients and steps without the life story, ads and comments around them.
+ *
+ * If the page has no structured data (or only a stub without ingredients or
+ * steps), the ingredients and steps are read from the lists under the page's
+ * "Ingredients" and "Directions" headings instead. Whatever details the
+ * structured data does have (title, image, times) are still used.
  */
 export function extractRecipe(html: string, sourceUrl?: string): RecipeDraft {
   const $ = cheerio.load(html);
-  const raw = fromJsonLd($, sourceUrl) ?? fromMicrodata($, sourceUrl);
-  if (!raw || raw.ingredients.length === 0 || raw.steps.length === 0) throw new NoRecipeError();
+  // A stub in one format (say JSON-LD with no ingredients) shouldn't hide a complete recipe in another.
+  const found = [fromJsonLd($, sourceUrl), fromMicrodata($, sourceUrl)];
+  const structured =
+    found.find((r) => r && r.ingredients.length > 0 && r.steps.length > 0) ?? found.find((r) => r) ?? null;
 
-  const ingredients = raw.ingredients.map((t) => ({ id: randomUUID(), text: t, checked: false }));
-  const steps = raw.steps.map((t) => ({
+  const ingredientLines = structured?.ingredients.length
+    ? structured.ingredients
+    : listUnderHeading($, INGREDIENTS_HEADING);
+  const stepLines = structured?.steps.length ? structured.steps : listUnderHeading($, STEPS_HEADING);
+  if (ingredientLines.length === 0 || stepLines.length === 0) throw new NoRecipeError();
+
+  const ingredients = ingredientLines.map((t) => ({ id: randomUUID(), text: t, checked: false }));
+  const steps = stepLines.map((t) => ({
     id: randomUUID(),
     text: t,
     ingredientIds: linkIngredientsToStep(t, ingredients),
   }));
 
   return {
-    title: raw.title || squash($('title').first().text()) || 'Untitled recipe',
+    title: structured?.title || pageTitle($) || 'Untitled recipe',
     sourceUrl,
-    image: raw.image,
-    servings: raw.servings,
-    prepTime: raw.prepTime,
-    cookTime: raw.cookTime,
-    totalTime: raw.totalTime,
+    image: structured?.image ?? firstImage($('meta[property="og:image"]').attr('content'), sourceUrl),
+    servings: structured?.servings,
+    prepTime: structured?.prepTime,
+    cookTime: structured?.cookTime,
+    totalTime: structured?.totalTime,
     ingredients,
     steps,
   };

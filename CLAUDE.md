@@ -21,8 +21,10 @@ Personal recipe app: import a recipe from a URL (recipe only, no blog fluff), sa
 
 ## Status
 
-The first version was written in a session with no access to the npm registry, so only the dependency-free parts were run:
+Written in sessions with no access to the npm registry, so nothing that needs `npm install` has been run by Claude:
 
-- Verified: `link`, `validate`, `fetchPage` (address guard) and `store` tests pass under plain `node --test`.
-- **Not yet run:** `extract` and `app` tests (need cheerio/express), `tsc` typecheck, and the Angular build/UI. Expect to fix small errors on first `npm install` + build, then update this section.
-- No `package-lock.json` yet; commit the lockfiles after the first install.
+- Verified here: `link`, `validate`, `fetchPage` (address guard) and `store` tests pass under plain `node --test`.
+- Not run by Claude: `extract` and `app` tests (need cheerio/express), `tsc` typecheck, the Angular build. The owner has since run the app locally and imported recipes successfully, but has not reported the test results.
+- Extractor fallback: when a page's structured data is missing or a stub (e.g. a Webflow site whose JSON-LD has no ingredients or steps because a script adds them in the browser), `extract.ts` reads the lists under the page's "Ingredients" and "Directions" headings. Its tests were written against the structure of a real page but have not been run: run `cd backend && npm test` and fix anything that fails.
+- Known gap: sub-section labels ("Brine:", "Seasoning & Cooking:") are dropped, so ingredients and steps are flat lists.
+- No `package-lock.json` is committed yet; commit the lockfiles after an install.

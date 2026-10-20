@@ -1,7 +1,16 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { extractRecipe, NoRecipeError } from '../src/extract.ts';
-import { BLOG_PAGE, MICRODATA_PAGE, NO_RECIPE_PAGE, SECTIONED_PAGE, STRING_INSTRUCTIONS_PAGE } from './fixtures.ts';
+import {
+  BLOG_PAGE,
+  MICRODATA_PAGE,
+  NO_RECIPE_PAGE,
+  PARAGRAPH_STEPS_PAGE,
+  SECTIONED_PAGE,
+  STRING_INSTRUCTIONS_PAGE,
+  STUB_JSONLD_PAGE,
+  STUB_PLUS_MICRODATA_PAGE,
+} from './fixtures.ts';
 
 test('extracts only the recipe from a blog page (JSON-LD @graph)', () => {
   const r = extractRecipe(BLOG_PAGE, 'https://blog.example.com/scramble');
@@ -65,4 +74,58 @@ test('throws NoRecipeError when the page has no recipe', () => {
 test('survives broken JSON-LD blocks and finds a later good one', () => {
   const html = `<script type="application/ld+json">{ not json</script>${BLOG_PAGE}`;
   assert.equal(extractRecipe(html).title, 'Cheesy Scrambled Eggs');
+});
+
+test('reads the visible Ingredients and Directions when the structured data is a stub', () => {
+  const r = extractRecipe(STUB_JSONLD_PAGE, 'https://chef.example.com/piccata');
+  // Details the stub does have are kept; empty ones are dropped.
+  assert.equal(r.title, 'Perfect Chicken Piccata');
+  assert.equal(r.image, 'https://cdn.example.com/piccata.png');
+  assert.equal(r.totalTime, undefined);
+  assert.equal(r.servings, undefined);
+  // Both sub-sections are read, in order, without their "Brine:" style labels.
+  assert.deepEqual(r.ingredients.map((i) => i.text), [
+    '1 chicken breast',
+    '2 quarts (2L) water',
+    '30 g kosher salt',
+    '2 lemons, juiced',
+    '\u00bc cup (60g) white wine',
+  ]);
+  assert.deepEqual(r.steps.map((s) => s.text), [
+    'Whisk the salt into the water until dissolved.',
+    'Add the chicken breast and refrigerate for 6-8 hours.',
+    'Deglaze the pan with white wine and lemon juice, then reduce.',
+  ]);
+  // Unrelated page content stays out.
+  const everything = JSON.stringify(r);
+  assert.ok(!everything.includes('Brownie'));
+  assert.ok(!everything.includes('so good'));
+});
+
+test('links steps to ingredients on a page read from its visible content', () => {
+  const r = extractRecipe(STUB_JSONLD_PAGE);
+  const linked = (i: number) => r.steps[i].ingredientIds.map((id) => r.ingredients.find((x) => x.id === id)?.text);
+  assert.deepEqual(linked(0), ['2 quarts (2L) water', '30 g kosher salt']);
+  assert.ok(linked(2).includes('\u00bc cup (60g) white wine'));
+});
+
+test('a stub JSON-LD block does not hide a complete microdata recipe', () => {
+  const r = extractRecipe(STUB_PLUS_MICRODATA_PAGE);
+  assert.deepEqual(r.ingredients.map((i) => i.text), ['1 loaf bread']);
+  assert.deepEqual(r.steps.map((s) => s.text), ['Toast the bread.']);
+});
+
+test('reads paragraph-style directions, skipping sub-headings and numbering', () => {
+  const r = extractRecipe(PARAGRAPH_STEPS_PAGE);
+  assert.equal(r.title, 'Simple Pasta');
+  assert.deepEqual(r.ingredients.map((i) => i.text), ['200 g spaghetti', '2 tbsp olive oil']);
+  assert.deepEqual(r.steps.map((s) => s.text), [
+    'Boil the spaghetti until tender.',
+    'Toss the spaghetti with the olive oil.',
+  ]);
+});
+
+test('a stub with no readable ingredients and steps on the page is still not a recipe', () => {
+  const html = '<script type="application/ld+json">{"@type":"Recipe","name":"Only a name"}</script><h2>Ingredients</h2>';
+  assert.throws(() => extractRecipe(html), NoRecipeError);
 });
