@@ -28,8 +28,8 @@ import { AuthService } from './auth.service';
               </button>
               @if (menuOpen()) {
                 <ul id="new-recipe-menu" class="menu">
-                  <li><a routerLink="/recipes/new" (click)="closeMenu()">Create New Recipe</a></li>
-                  <li><a routerLink="/import" (click)="closeMenu()">Import from URL</a></li>
+                  <li><a routerLink="/recipes/new" (click)="closeMenu()">From Scratch</a></li>
+                  <li><a routerLink="/import" (click)="closeMenu()">From URL</a></li>
                 </ul>
               }
             </div>
