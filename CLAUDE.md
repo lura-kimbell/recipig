@@ -28,6 +28,7 @@ Personal recipe app: import a recipe from a URL (recipe only, no blog fluff), sa
 ## Status
 
 - Accounts and MongoDB (added in a no-npm session): verified here under plain `node --test`: password hashing, cookie/session helpers, rate limiter, credential rules, the in-memory stores against the shared store contract, and the frontend `safeReturnUrl`. NOT run: `mongoStores.ts` (contract tests skip without `TEST_MONGODB_URI`; run `cd backend && TEST_MONGODB_URI=mongodb://127.0.0.1:27017 npm test`), the Express auth routes and rewritten `app.test.ts`, `tsc`, and all new Angular code (`auth-*.ts`, header, guards, interceptor). Expect small fixes on first run.
+- Editor tweaks (ingredient reorder buttons, image link field with preview, section tags in the step ingredient picker): Angular template and CSS only, unrun and unseen.
 - Favicon is now a hand-drawn SVG pig snout (`frontend/public/favicon.svg`); checked at 16-128px in Chromium.
 
 Written in sessions with no access to the npm registry, so nothing that needs `npm install` has been run by Claude:

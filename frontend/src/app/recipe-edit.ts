@@ -42,6 +42,13 @@ const blank = (): Recipe => ({
           <span>Title</span>
           <input type="text" [(ngModel)]="draft.title" />
         </label>
+        <label class="field">
+          <span>Image link</span>
+          <input type="url" placeholder="https://example.com/photo.jpg" [(ngModel)]="draft.image" />
+        </label>
+        @if (imagePreview(); as src) {
+          <img class="hero edit-preview" [src]="src" alt="Preview of the recipe image" referrerpolicy="no-referrer" />
+        }
         <div class="two-col">
           <label class="field">
             <span>Servings</span>
@@ -85,6 +92,24 @@ const blank = (): Recipe => ({
               [(ngModel)]="ing.text"
               [attr.aria-label]="'Ingredient ' + (i + 1)"
             />
+            <button
+              type="button"
+              class="btn ghost small"
+              (click)="moveIngredient(i, -1)"
+              [disabled]="i === 0"
+              [attr.aria-label]="'Move ingredient ' + (i + 1) + ' up'"
+            >
+              ▲
+            </button>
+            <button
+              type="button"
+              class="btn ghost small"
+              (click)="moveIngredient(i, 1)"
+              [disabled]="i === draft.ingredients.length - 1"
+              [attr.aria-label]="'Move ingredient ' + (i + 1) + ' down'"
+            >
+              ▼
+            </button>
             <button
               type="button"
               class="btn ghost small"
@@ -142,7 +167,10 @@ const blank = (): Recipe => ({
                 @for (ing of draft.ingredients; track ing.id) {
                   <label class="check">
                     <input type="checkbox" [checked]="step.ingredientIds.includes(ing.id)" (change)="toggleLink(step, ing.id)" />
-                    <span>{{ ing.text || '(blank ingredient)' }}</span>
+                    <span class="check-text">{{ ing.text || '(blank ingredient)' }}</span>
+                    @if (ing.section?.trim(); as sectionName) {
+                      <span class="section-tag">{{ sectionName }}</span>
+                    }
                   </label>
                 }
               </details>
@@ -238,6 +266,19 @@ export class RecipeEdit implements OnInit {
     this.draft.steps = this.draft.steps.filter((s) => s.id !== id);
   }
 
+  moveIngredient(index: number, delta: number): void {
+    const target = index + delta;
+    const list = this.draft.ingredients;
+    if (target < 0 || target >= list.length) return;
+    [list[index], list[target]] = [list[target], list[index]];
+  }
+
+  /** The typed link, if it looks like a web address worth previewing. */
+  imagePreview(): string {
+    const value = this.draft.image?.trim() ?? '';
+    return /^https?:\/\//i.test(value) ? value : '';
+  }
+
   moveStep(index: number, delta: number): void {
     const target = index + delta;
     const steps = this.draft.steps;
@@ -283,6 +324,6 @@ export class RecipeEdit implements OnInit {
         section: s.section?.trim() || undefined,
         ingredientIds: s.ingredientIds.filter((id) => known.has(id)),
       }));
-    return { ...this.draft, title: this.draft.title.trim(), ingredients, steps };
+    return { ...this.draft, title: this.draft.title.trim(), image: this.draft.image?.trim() || undefined, ingredients, steps };
   }
 }

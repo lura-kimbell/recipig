@@ -569,6 +569,28 @@ input[type='checkbox']:checked::after {
   padding: 0.3rem 0;
   cursor: pointer;
 }
+.check-text {
+  flex: 0 1 auto;
+}
+/* An ingredient's section, shown to the right of its name in the step picker */
+.section-tag {
+  align-self: center;
+  margin-left: auto;
+  padding: 0 0.6rem;
+  font-size: 0.8rem;
+  font-weight: 700;
+  line-height: 1.5;
+  color: var(--bark);
+  background: var(--butter);
+  border: 2px solid var(--outline);
+  border-radius: 999px;
+  white-space: nowrap;
+}
+.edit-preview {
+  max-height: 200px;
+  margin: 0;
+  border-radius: 18px;
+}
 .done {
   color: var(--bark-soft);
   text-decoration: line-through;
