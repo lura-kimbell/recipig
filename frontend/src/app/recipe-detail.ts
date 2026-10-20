@@ -78,7 +78,7 @@ import { RecipeService, errorMessage, hostOf } from './recipe.service';
           </ul>
         }
         @if (purchased() > 0) {
-          <button type="button" class="btn ghost small" (click)="clearChecks()">Clear checkmarks</button>
+          <button type="button" class="btn small" (click)="clearChecks()">Clear checkmarks</button>
         }
       </section>
 
@@ -86,7 +86,7 @@ import { RecipeService, errorMessage, hostOf } from './recipe.service';
         <div class="section-head">
           <h2>Steps</h2>
           @if (linkedStepIds().length > 0) {
-            <button type="button" class="btn ghost small" (click)="toggleAll()">
+            <button type="button" class="btn small" (click)="toggleAll()">
               {{ allOpen() ? 'Collapse all' : 'Expand all' }} ingredients
             </button>
           }
@@ -98,7 +98,7 @@ import { RecipeService, errorMessage, hostOf } from './recipe.service';
           @if (group.section) {
             <h3 class="group-title">{{ group.section }}</h3>
           }
-          <ol class="steps">
+          <ol class="steps" role="list">
             @for (step of group.items; track step.id) {
               <li>
                 <p>{{ step.text }}</p>

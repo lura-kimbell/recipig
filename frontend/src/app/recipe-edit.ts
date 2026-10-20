@@ -133,7 +133,7 @@ const blank = (): Recipe => ({
               >
                 ▼
               </button>
-              <button type="button" class="btn ghost small" (click)="removeStep(step.id)">Remove</button>
+              <button type="button" class="btn small danger" (click)="removeStep(step.id)">Remove</button>
             </div>
             <textarea rows="3" [(ngModel)]="step.text" [attr.aria-label]="'Step ' + (i + 1)"></textarea>
             @if (draft.ingredients.length > 0) {
