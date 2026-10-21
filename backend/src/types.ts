@@ -17,6 +17,8 @@ export interface Step {
   ingredientIds: string[];
   /** Optional group label such as "Brine" or "For the sauce". */
   section?: string;
+  /** The cook's own notes on this step: tweaks they tried, ideas for next time. */
+  notes?: string;
 }
 
 export interface Recipe {

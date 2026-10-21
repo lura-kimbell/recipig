@@ -88,7 +88,16 @@ export function parseRecipeInput(body: unknown): RecipeDraft {
     const linked = Array.isArray(raw.ingredientIds) ? raw.ingredientIds : [];
     const links = [...new Set(linked.filter((id): id is string => typeof id === 'string' && ingredientIds.has(id)))];
     const section = optionalString(raw.section, MAX_SECTION, 'section');
-    return [{ id: uniqueId(raw.id, stepIds), text, ingredientIds: links, ...(section ? { section } : {}) }];
+    const notes = optionalString(raw.notes, MAX_TEXT, 'step notes');
+    return [
+      {
+        id: uniqueId(raw.id, stepIds),
+        text,
+        ingredientIds: links,
+        ...(section ? { section } : {}),
+        ...(notes ? { notes } : {}),
+      },
+    ];
   });
 
   return {

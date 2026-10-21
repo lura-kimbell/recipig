@@ -1083,6 +1083,16 @@ input[type='checkbox']:checked::after {
   border-left: var(--border-w-control) var(--line) var(--leaf);
   transform: rotate(45deg);
 }
+/* Each fold (ingredients, notes) sits on its own line, so its bubble's tail points at its own button. */
+.step-fold + .step-fold {
+  margin-top: 0.35rem;
+}
+/* Notes are the same bubble as a step's ingredients, holding the cook's own text. */
+.step-notes {
+  max-width: 62ch;
+  padding-left: 1.2rem;
+  white-space: pre-line;
+}
 .step-ingredients li::marker {
   color: var(--step-list-marker);
 }
@@ -1308,6 +1318,9 @@ details summary {
   border: var(--border-w) var(--line) var(--outline);
   border-radius: var(--radius-card);
   box-shadow: var(--shadow-card);
+}
+.import-dialog {
+  width: min(34rem, calc(100vw - 2rem));
 }
 .dialog::backdrop {
   background: rgb(10 12 20 / 0.55);

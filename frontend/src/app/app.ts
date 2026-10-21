@@ -1,6 +1,7 @@
 import { Component, ElementRef, effect, inject, signal, viewChild } from '@angular/core';
 import { Router, RouterLink, RouterOutlet } from '@angular/router';
 import { AuthService } from './auth.service';
+import { ImportDialog } from './import-dialog';
 import { ThemePicker } from './theme-picker';
 import { ThemeService, isThemeId } from './theme.service';
 
@@ -8,7 +9,7 @@ type MenuName = 'new' | 'user';
 
 @Component({
   selector: 'app-root',
-  imports: [RouterOutlet, RouterLink, ThemePicker],
+  imports: [RouterOutlet, RouterLink, ThemePicker, ImportDialog],
   host: {
     '(document:click)': 'onDocumentClick($event)',
     '(document:keydown.escape)': 'closeMenu(true)',
@@ -36,7 +37,7 @@ type MenuName = 'new' | 'user';
               @if (openMenu() === 'new') {
                 <ul id="new-recipe-menu" class="menu">
                   <li><a routerLink="/recipes/new" (click)="closeMenu()">From Scratch</a></li>
-                  <li><a routerLink="/import" (click)="closeMenu()">From URL</a></li>
+                  <li><button type="button" (click)="openImport()">From URL</button></li>
                 </ul>
               }
             </div>
@@ -74,6 +75,7 @@ type MenuName = 'new' | 'user';
       <router-outlet />
     </main>
     <app-theme-picker />
+    <app-import-dialog />
   `,
 })
 export class App {
@@ -84,6 +86,7 @@ export class App {
   private readonly newToggle = viewChild<ElementRef<HTMLButtonElement>>('newToggle');
   private readonly userToggle = viewChild<ElementRef<HTMLButtonElement>>('userToggle');
   private readonly themePicker = viewChild.required(ThemePicker);
+  private readonly importDialog = viewChild.required(ImportDialog);
 
   readonly openMenu = signal<MenuName | null>(null);
 
@@ -104,6 +107,11 @@ export class App {
     if (!open) return;
     this.openMenu.set(null);
     if (refocus) (open === 'new' ? this.newToggle() : this.userToggle())?.nativeElement.focus();
+  }
+
+  openImport(): void {
+    this.closeMenu();
+    this.importDialog().open();
   }
 
   openThemePicker(): void {

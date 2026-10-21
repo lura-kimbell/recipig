@@ -19,6 +19,8 @@ export interface Step {
   ingredientIds: string[];
   /** Group label such as "Brine"; steps with the same label sit together. */
   section?: string;
+  /** The cook's own notes: tweaks they tried, ideas for next time. Omitted when blank. */
+  notes?: string;
 }
 
 export interface Recipe {

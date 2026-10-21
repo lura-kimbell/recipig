@@ -5,7 +5,7 @@ A personal recipe app. Paste a link to a recipe and Recipig saves just the recip
 ## Features
 
 - **Accounts.** Create an account with just a username and password (no email), log in and log out. On a hosted site, sign-up can require an invite code (see `SIGNUP_CODE`). Usernames are unique (Alice and alice are the same). Every recipe you import, create or edit belongs to your account, and nobody else can see it. There is no password reset, so pick one you'll remember.
-- **New Recipe menu.** The button in the header offers **Create New Recipe** (the edit form, empty) and **Import from URL**.
+- **New Recipe menu.** The button in the header offers **From Scratch** (the edit form, empty) and **From URL** (a dialog where you paste a recipe link).
 - **Import from a URL.** Reads the recipe data that sites publish for search engines (schema.org JSON-LD, then microdata). If a page has none, or only a stub, it reads the lists under the page's "Ingredients" and "Directions" headings instead. You get the title, times, ingredients and steps only.
 - **Saved recipes.** Imported recipes are stored and listed so you can come back to them.
 - **Sections.** Ingredients and steps can be grouped under labels such as "Brine" or "Sauce". Imports keep the page's labels; in the editor, type a label in an item's Section box (items with the same label are grouped).
@@ -15,6 +15,7 @@ A personal recipe app. Paste a link to a recipe and Recipig saves just the recip
 - **Nutrition estimate.** The recipe page estimates calories, protein, carbohydrates (fiber, sugar), fat and sodium from the ingredient list, per serving and for the whole batch (it follows the batch size). Lines without an amount, or with a food that isn't in the built-in table, are listed as not counted.
 - **Themes.** The account menu (your name in the header) has **Change theme**: Friendly (the default pastel village), Aurora (northern lights over a starry sky) or Terminal (green-on-dark monospace). Your choice is saved to your account, so it follows you to other devices.
 - **Shopping checkboxes.** Tick off ingredients as you buy them; ticks are saved.
+- **Step notes.** Each step has an optional Notes box in the editor for tweaks you tried or ideas for next time. On the recipe page, a step with notes gets a **Notes** fold beside its ingredients.
 - **Ingredients alongside each step.** Each step has an expandable section repeating the quantities of the ingredients it mentions (for "mix the eggs with the cheese" you'll see "2 large eggs" and "3/4 cup sharp cheddar cheese"). Links are detected automatically on import and can be corrected in the editor.
 
 ## Running it
