@@ -2,7 +2,7 @@ import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { RECIPE_TAGS, Recipe, RecipeTag, TAG_EMOJI } from './models';
-import { RecipeService, errorMessage, hostOf } from './recipe.service';
+import { RecipeService, errorMessage } from './recipe.service';
 
 const PLACEHOLDER_EMOJI = ['🍳', '🥕', '🍰', '🍓', '🥐', '🍲'];
 
@@ -59,9 +59,6 @@ const PLACEHOLDER_EMOJI = ['🍳', '🥕', '🍰', '🍓', '🥐', '🍲'];
                 <span class="chip">{{ r.ingredients.length }} {{ r.ingredients.length === 1 ? 'ingredient' : 'ingredients' }}</span>
                 <span class="chip">{{ r.steps.length }} {{ r.steps.length === 1 ? 'step' : 'steps' }}</span>
               </p>
-              @if (host(r.sourceUrl)) {
-                <p class="muted small">{{ host(r.sourceUrl) }}</p>
-              }
               @if (r.tags?.length) {
                 <ul class="tag-list card-tags" aria-label="Tags">
                   @for (tag of r.tags; track tag) {
@@ -104,8 +101,6 @@ export class RecipeList implements OnInit {
     for (const r of this.recipes()) for (const t of r.tags ?? []) counts[t]++;
     return counts;
   });
-
-  readonly host = hostOf;
 
   /** Recipes without a photo get a friendly emoji instead, varied by position. */
   emoji(index: number): string {
