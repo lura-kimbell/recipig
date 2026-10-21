@@ -3,6 +3,8 @@ import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { Ingredient, Recipe, Step, groupBySection } from './models';
 import { RecipeService, errorMessage, hostOf } from './recipe.service';
+import { NUTRIENT_KEYS, estimateNutrition, scaleNutrients, servingCount } from './nutrition';
+import { FOODS } from './nutrition-data';
 import { scaleIngredientText } from './scale';
 
 @Component({
@@ -144,6 +146,48 @@ import { scaleIngredientText } from './scale';
           </ol>
         }
       </section>
+
+      <section class="card" aria-labelledby="nutrition-title">
+        <div class="section-head">
+          <h2 id="nutrition-title">Nutrition</h2>
+          <span class="muted small">Estimate</span>
+        </div>
+        @if (nutrition().counted === 0) {
+          <p class="muted">Add amounts to the ingredients (like "1 cup flour") to see a nutrition estimate.</p>
+        } @else {
+          <table class="nutrition">
+            <thead>
+              <tr>
+                <th scope="col"><span class="visually-hidden">Nutrient</span></th>
+                @if (perServing(); as serving) {
+                  <th scope="col">Per serving</th>
+                }
+                <th scope="col">{{ multiplier() > 1 ? 'Whole batch (' + multiplier() + 'x)' : 'Whole recipe' }}</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (row of nutrientRows; track row.key) {
+                <tr [class.sub]="row.sub">
+                  <th scope="row">{{ row.label }}</th>
+                  @if (perServing(); as serving) {
+                    <td>{{ show(serving[row.key], row.unit) }}</td>
+                  }
+                  <td>{{ show(batchNutrition()[row.key], row.unit) }}</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+          <p class="muted small">
+            From typical USDA values for {{ nutrition().counted }} of {{ r.ingredients.length }} ingredients.
+            @if (servingsInBatch(); as n) {
+              Per serving is the batch divided into {{ n }}.
+            }
+          </p>
+          @if (nutrition().skipped.length > 0) {
+            <p class="muted small">Not counted: {{ skippedText() }}</p>
+          }
+        }
+      </section>
     }
   `,
 })
@@ -171,6 +215,35 @@ export class RecipeDetail implements OnInit {
     return new Map((this.recipe()?.ingredients ?? []).map((i) => [i.id, scaleIngredientText(i.text, factor)]));
   });
   readonly servingsText = computed(() => scaleIngredientText(this.recipe()?.servings ?? '', this.multiplier()));
+
+  /** Nutrition of the recipe as written; the batch size only multiplies it. */
+  readonly nutrition = computed(() => estimateNutrition((this.recipe()?.ingredients ?? []).map((i) => i.text), FOODS));
+  readonly batchNutrition = computed(() => scaleNutrients(this.nutrition().total, this.multiplier()));
+  readonly servingsInBatch = computed(() => {
+    const servings = servingCount(this.recipe()?.servings);
+    return servings ? servings * this.multiplier() : null;
+  });
+  /** Servings grow with the batch, so a serving stays the same size. */
+  readonly perServing = computed(() => {
+    const servings = servingCount(this.recipe()?.servings);
+    return servings ? scaleNutrients(this.nutrition().total, 1 / servings) : null;
+  });
+  readonly skippedText = computed(() => this.nutrition().skipped.map((s) => s.text).join(', '));
+  readonly nutrientRows: { key: (typeof NUTRIENT_KEYS)[number]; label: string; unit: 'kcal' | 'g' | 'mg'; sub?: boolean }[] = [
+    { key: 'calories', label: 'Calories', unit: 'kcal' },
+    { key: 'protein', label: 'Protein', unit: 'g' },
+    { key: 'carbs', label: 'Carbohydrates', unit: 'g' },
+    { key: 'fiber', label: 'Fiber', unit: 'g', sub: true },
+    { key: 'sugar', label: 'Sugar', unit: 'g', sub: true },
+    { key: 'fat', label: 'Fat', unit: 'g' },
+    { key: 'sodium', label: 'Sodium', unit: 'mg' },
+  ];
+
+  /** "1,240 kcal", "8.5 g", "36 g", "410 mg". */
+  show(value: number, unit: string): string {
+    const rounded = unit === 'g' && value < 10 ? Math.round(value * 10) / 10 : Math.round(value);
+    return `${rounded.toLocaleString('en-US')} ${unit}`;
+  }
 
   readonly ingredientGroups = computed(() => groupBySection(this.recipe()?.ingredients ?? []));
   readonly stepGroups = computed(() => groupBySection(this.recipe()?.steps ?? []));
