@@ -30,9 +30,9 @@ function makeClient(base: string): Call {
 async function withServer(
   fetchPage: (url: string) => Promise<{ html: string; finalUrl: string }>,
   run: (call: Call, newClient: () => Call) => Promise<void>,
-  options: { now?: () => number } = {},
+  options: { now?: () => number; signupCode?: string } = {},
 ) {
-  const app = createApp(createMemoryStores(), { fetchPage, now: options.now });
+  const app = createApp(createMemoryStores(), { fetchPage, now: options.now, signupCode: options.signupCode });
   const server = app.listen(0, '127.0.0.1');
   await new Promise((resolve) => server.once('listening', resolve));
   const base = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
@@ -40,7 +40,7 @@ async function withServer(
 
   // Most tests just need someone logged in.
   const call = newClient();
-  const registered = await call('POST', '/api/auth/register', { username: 'alice', password: 'pw' });
+  const registered = await call('POST', '/api/auth/register', { username: 'alice', password: 'pw', inviteCode: options.signupCode });
   assert.equal(registered.status, 201);
 
   try {
@@ -214,4 +214,25 @@ test('sessions expire', async () => {
     },
     { now: () => clock },
   );
+});
+
+test('with an invite code set, only people who have it can create an account', async () => {
+  await withServer(
+    okPage,
+    async (_alice, newClient) => {
+      const visitor = newClient();
+      assert.deepEqual((await visitor('GET', '/api/auth/signup')).json, { inviteCodeRequired: true });
+      assert.equal((await visitor('POST', '/api/auth/register', { username: 'bob', password: 'pw' })).status, 400);
+      assert.equal((await visitor('POST', '/api/auth/register', { username: 'bob', password: 'pw', inviteCode: 'nope' })).status, 400);
+      assert.equal((await visitor('GET', '/api/auth/me')).status, 401);
+      assert.equal((await visitor('POST', '/api/auth/register', { username: 'bob', password: 'pw', inviteCode: ' oink-oink ' })).status, 201);
+    },
+    { signupCode: 'oink-oink' },
+  );
+});
+
+test('without an invite code set, anyone can sign up', async () => {
+  await withServer(okPage, async (_alice, newClient) => {
+    assert.deepEqual((await newClient()('GET', '/api/auth/signup')).json, { inviteCodeRequired: false });
+  });
 });

@@ -19,6 +19,8 @@ export interface AppOptions {
   secureCookie?: boolean;
   /** Passed to Express's "trust proxy" setting when running behind a reverse proxy. */
   trustProxy?: string | number | boolean;
+  /** Invite code required to create an account (see AuthOptions). */
+  signupCode?: string;
   /** Swappable clock for tests. */
   now?: () => number;
 }
@@ -26,7 +28,7 @@ export interface AppOptions {
 export function createApp(stores: Stores, options: AppOptions = {}) {
   const getPage = options.fetchPage ?? fetchPage;
   const { recipes: store } = stores;
-  const auth = createAuth(stores, { secureCookie: options.secureCookie, now: options.now });
+  const auth = createAuth(stores, { secureCookie: options.secureCookie, signupCode: options.signupCode, now: options.now });
   const app = express();
   if (options.trustProxy !== undefined) app.set('trust proxy', options.trustProxy);
   app.use(express.json({ limit: '1mb' }));

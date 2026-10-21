@@ -54,8 +54,22 @@ Settings (environment variables for the backend):
 | `PORT`, `HOST` | `3000`, `127.0.0.1` | The server listens on localhost only by default, because it fetches web pages on behalf of logged-in users |
 | `COOKIE_SECURE` | off | Set to `true` when the site is served over https, so the login cookie is only sent securely |
 | `TRUST_PROXY` | off | Set (for example to `1`) when behind a reverse proxy, so login rate limiting sees real client addresses |
+| `SIGNUP_CODE` | none | When set, creating an account needs this invite code (the sign-up form asks for it). Leave unset to let anyone sign up |
 
 Collections: `users`, `sessions` and `recipes`; the indexes are created on startup.
+
+## Hosting on Render
+
+`render.yaml` describes the whole app as one Render web service: Render builds the Angular app, installs the backend, and runs the Express server, which serves both the site and the API from one address. The database lives on MongoDB Atlas.
+
+1. **Database (MongoDB Atlas).** Create a free cluster at https://cloud.mongodb.com. Under *Database Access*, add a database user with a long random password. Under *Network Access*, allow `0.0.0.0/0` (Render's free plan has no fixed address to allow instead; the database password is what protects it). Then *Connect → Drivers* gives a connection string like `mongodb+srv://USER:PASSWORD@cluster0.xxxxx.mongodb.net/`.
+2. **Code on GitHub.** Push this repository to GitHub (Render deploys from there).
+3. **Render.** At https://dashboard.render.com choose *New → Blueprint*, connect your GitHub account, and pick the repository. Render reads `render.yaml` and asks for two values:
+   - `MONGODB_URI`: the Atlas connection string from step 1.
+   - `SIGNUP_CODE`: an invite code of your choosing. Only people you give it to can create an account.
+4. **Use it.** When the first deploy finishes, open the `https://….onrender.com` address Render shows, create your account with the invite code, and log in from any device.
+
+Every push to the repository's default branch deploys again. On the free plan the app goes to sleep after a while without visitors, so the first visit after a quiet spell takes up to a minute to load. To move recipes from your local database, export and import them with MongoDB's `mongodump`/`mongorestore` tools, or re-import them from their links.
 
 ### Moving over your old recipes
 

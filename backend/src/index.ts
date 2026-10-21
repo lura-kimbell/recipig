@@ -10,6 +10,7 @@ const mongoUri = process.env.MONGODB_URI ?? 'mongodb://127.0.0.1:27017';
 const mongoDb = process.env.MONGODB_DB ?? 'recipig';
 const secureCookie = process.env.COOKIE_SECURE === 'true';
 const trustProxy = process.env.TRUST_PROXY;
+const signupCode = process.env.SIGNUP_CODE;
 
 /** Hide any user:password@ part of the connection string before it is printed. */
 const redact = (text: string) => text.replace(/\/\/[^/@\s]*@/g, '//***@');
@@ -27,6 +28,7 @@ try {
 const app = createApp(mongo.stores, {
   staticDir,
   secureCookie,
+  signupCode,
   trustProxy: trustProxy === undefined ? undefined : /^\d+$/.test(trustProxy) ? Number(trustProxy) : trustProxy === 'true' ? true : trustProxy,
 });
 

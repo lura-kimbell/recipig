@@ -27,8 +27,17 @@ export class AuthService {
     this.user.set(await firstValueFrom(this.http.post<User>('/api/auth/login', { username, password })));
   }
 
-  async register(username: string, password: string): Promise<void> {
-    this.user.set(await firstValueFrom(this.http.post<User>('/api/auth/register', { username, password })));
+  async register(username: string, password: string, inviteCode?: string): Promise<void> {
+    this.user.set(await firstValueFrom(this.http.post<User>('/api/auth/register', { username, password, inviteCode })));
+  }
+
+  /** Whether creating an account needs an invite code on this server. */
+  async inviteCodeRequired(): Promise<boolean> {
+    try {
+      return (await firstValueFrom(this.http.get<{ inviteCodeRequired: boolean }>('/api/auth/signup'))).inviteCodeRequired;
+    } catch {
+      return false;
+    }
   }
 
   async logout(): Promise<void> {

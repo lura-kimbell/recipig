@@ -44,6 +44,12 @@ import { errorMessage } from './recipe.service';
             Type the password again
             <input type="password" name="confirm" autocomplete="new-password" [(ngModel)]="confirm" [disabled]="busy()" />
           </label>
+          @if (inviteRequired()) {
+            <label class="field">
+              Invite code
+              <input type="text" name="inviteCode" autocomplete="off" autocapitalize="none" spellcheck="false" [(ngModel)]="inviteCode" [disabled]="busy()" />
+            </label>
+          }
           <p class="muted">There's no way to reset a forgotten password, so choose one you'll remember.</p>
         }
         @if (error()) {
@@ -74,12 +80,16 @@ export class AuthPage {
   readonly registering = this.route.snapshot.data['mode'] === 'register';
   readonly busy = signal(false);
   readonly error = signal('');
+  /** Set from the server: this site only lets people with an invite code sign up. */
+  readonly inviteRequired = signal(false);
   username = '';
   password = '';
   confirm = '';
+  inviteCode = '';
 
   constructor() {
     afterNextRender(() => this.input()?.nativeElement.focus());
+    if (this.registering) void this.auth.inviteCodeRequired().then((required) => this.inviteRequired.set(required));
   }
 
   returnParams(): { returnUrl?: string } {
@@ -94,10 +104,11 @@ export class AuthPage {
     if (!username) return this.error.set('Please enter a username.');
     if (!this.password) return this.error.set('Please enter a password.');
     if (this.registering && this.password !== this.confirm) return this.error.set("The two passwords don't match.");
+    if (this.registering && this.inviteRequired() && !this.inviteCode.trim()) return this.error.set('Please enter your invite code.');
 
     this.busy.set(true);
     try {
-      if (this.registering) await this.auth.register(username, this.password);
+      if (this.registering) await this.auth.register(username, this.password, this.inviteCode.trim() || undefined);
       else await this.auth.login(username, this.password);
       await this.router.navigateByUrl(safeReturnUrl(this.route.snapshot.queryParamMap.get('returnUrl')));
     } catch (e) {

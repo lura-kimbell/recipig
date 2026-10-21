@@ -1,0 +1,27 @@
+# Render Blueprint: one web service that builds the Angular app and serves it
+# from the Express server. See "Hosting on Render" in the README.
+services:
+  - type: web
+    name: recipig
+    runtime: node
+    plan: free
+    # tsx and the Angular CLI are dev dependencies, so install those too.
+    buildCommand: cd frontend && npm ci --include=dev && npm run build && cd ../backend && npm ci --include=dev
+    startCommand: cd backend && npm start
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      # Render routes outside traffic to the app, so listen on all interfaces.
+      - key: HOST
+        value: 0.0.0.0
+      # Render serves the site over https and sits in front of the app as a proxy.
+      - key: COOKIE_SECURE
+        value: "true"
+      - key: TRUST_PROXY
+        value: "1"
+      # Secrets: Render asks for these when the Blueprint is first created.
+      - key: MONGODB_URI
+        sync: false
+      - key: SIGNUP_CODE
+        sync: false
