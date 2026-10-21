@@ -41,4 +41,4 @@ Written in sessions with no access to the npm registry, so nothing that needs `n
 - Sections, the create endpoint, the header menu, the blank-recipe form and the import page were added later in the same no-npm situation: their `extract` and `app` tests and all Angular code are unrun. Expect to fix small template or type errors on the first `npm start`.
 - The restyle was checked by rendering static mock pages that use the real stylesheet (light, desktop, phone; the dark theme has since been removed); it has not been seen in the running Angular app.
 - Batch size: the scaling logic (`scale.ts`, 18 test groups) was run and passes under plain `node --test`; the buttons and template wiring in `recipe-detail.ts` are unrun, as is the new `tsx` dev dependency in `frontend/package.json`.
-- No `package-lock.json` is committed yet; commit the lockfiles after an install.
+- Both `package-lock.json` files are committed; commit lockfile changes along with any dependency change.
