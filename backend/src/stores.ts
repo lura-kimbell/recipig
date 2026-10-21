@@ -17,7 +17,7 @@ export interface User {
 }
 
 /** The app's looks. The first is the default. */
-export const THEMES = ['friendly', 'aurora', 'terminal'] as const;
+export const THEMES = ['friendly', 'aurora', 'terminal', 'sanguine'] as const;
 export type Theme = (typeof THEMES)[number];
 export const isTheme = (v: unknown): v is Theme => typeof v === 'string' && (THEMES as readonly string[]).includes(v);
 

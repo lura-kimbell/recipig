@@ -11,13 +11,13 @@
       // Start in the theme picked last time, before the app loads, so the page doesn't flash another one.
       try {
         var theme = localStorage.getItem('recipig-theme');
-        if (theme === 'aurora' || theme === 'terminal' || theme === 'friendly') document.documentElement.dataset.theme = theme;
+        if (/^(friendly|aurora|terminal|sanguine)$/.test(theme)) document.documentElement.dataset.theme = theme;
       } catch (e) {}
     </script>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400..700&family=Google+Sans+Code:wght@300..800&family=Nunito:wght@400..800&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400..900&family=EB+Garamond:ital,wght@0,400..800;1,400..800&family=Fredoka:wght@400..700&family=Google+Sans+Code:wght@300..800&family=Nunito:wght@400..800&display=swap"
       rel="stylesheet"
     />
   </head>

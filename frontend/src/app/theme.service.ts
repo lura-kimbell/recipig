@@ -7,6 +7,7 @@ export const THEMES = [
   { id: 'friendly', name: 'Friendly', description: 'A cosy pastel village with a polka-dot meadow.', barColor: '#ffd5e1' },
   { id: 'aurora', name: 'Aurora', description: 'Northern lights over a starry night sky.', barColor: '#060a1c' },
   { id: 'terminal', name: 'Terminal', description: 'Green on dark, in a monospace font.', barColor: '#0a0a0a' },
+  { id: 'sanguine', name: 'Sanguine', description: 'Stark black, bone and blood red, with carved capitals.', barColor: '#050404' },
 ] as const;
 
 export type ThemeId = (typeof THEMES)[number]['id'];
