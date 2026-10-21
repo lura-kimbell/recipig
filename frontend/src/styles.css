@@ -373,6 +373,13 @@ button.tag-pill[aria-pressed='true'] {
   margin-top: auto;
   padding-top: 0.7rem;
 }
+/* Cards show just the icon in a round badge; the name is in the tooltip and for screen readers. */
+.tag-pill.icon-only {
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+}
 
 .tag-filter {
   display: flex;

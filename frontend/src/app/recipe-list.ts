@@ -62,8 +62,8 @@ const PLACEHOLDER_EMOJI = ['🍳', '🥕', '🍰', '🍓', '🥐', '🍲'];
               @if (r.tags?.length) {
                 <ul class="tag-list card-tags" aria-label="Tags">
                   @for (tag of r.tags; track tag) {
-                    <li class="tag-pill" [attr.data-tag]="tag">
-                      <span class="tag-icon" aria-hidden="true"></span>{{ tag }}
+                    <li class="tag-pill icon-only" [attr.data-tag]="tag" [title]="tag">
+                      <span class="tag-icon" aria-hidden="true"></span><span class="visually-hidden">{{ tag }}</span>
                     </li>
                   }
                 </ul>
