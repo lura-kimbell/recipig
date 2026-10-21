@@ -66,7 +66,7 @@ export function runStoreContract(name: string, open: () => Promise<{ stores: Sto
   });
 
   t('update keeps id and createdAt, replaces the rest, and clears optional fields left out', async ({ recipes }) => {
-    const created = await recipes.create('u1', draft('Old', { servings: '4', sourceUrl: 'https://x.example/' }));
+    const created = await recipes.create('u1', draft('Old', { servings: '4', sourceUrl: 'https://x.example/', tags: ['Chicken'] }));
     await new Promise((r) => setTimeout(r, 5));
     const updated = await recipes.update('u1', created.id, draft('New', { ingredients: [{ id: 'i9', text: '1 cup milk', checked: true, section: 'Wet' }] }));
     assert.equal(updated?.id, created.id);
@@ -75,6 +75,7 @@ export function runStoreContract(name: string, open: () => Promise<{ stores: Sto
     assert.equal(updated?.title, 'New');
     assert.equal('servings' in (updated ?? {}), false);
     assert.equal('sourceUrl' in (updated ?? {}), false);
+    assert.equal('tags' in (updated ?? {}), false);
 
     const reloaded = await recipes.get('u1', created.id);
     assert.deepEqual(reloaded, updated);

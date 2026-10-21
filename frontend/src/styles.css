@@ -223,6 +223,8 @@ h3 {
   list-style: none;
 }
 .recipe-card {
+  display: flex;
+  flex-direction: column;
   height: 100%;
   margin: 0;
   color: inherit;
@@ -283,6 +285,88 @@ h3 {
   padding: 0.05rem 0.65rem;
   font-size: 0.85rem;
   font-weight: 700;
+  background: var(--chip);
+  border-radius: 999px;
+}
+
+/* ---------- Main-ingredient tags ---------- */
+
+.tag-pill {
+  --tag-bg: var(--cloud);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.05rem 0.7rem;
+  font: 700 0.85rem/1.5 var(--font-body);
+  color: var(--bark);
+  white-space: nowrap;
+  background: var(--tag-bg);
+  border: 2px solid var(--outline);
+  border-radius: 999px;
+}
+.tag-pill[data-tag='Chicken'] {
+  --tag-bg: var(--butter);
+}
+.tag-pill[data-tag='Beef'] {
+  --tag-bg: var(--blossom);
+}
+.tag-pill[data-tag='Pork'] {
+  --tag-bg: var(--peach);
+}
+.tag-pill[data-tag='Fish'] {
+  --tag-bg: var(--sky);
+}
+.tag-pill[data-tag='Vegetarian'] {
+  --tag-bg: var(--mint);
+}
+
+/* As a toggle (list filter, editor): plain until picked, then its colour. */
+button.tag-pill {
+  padding: 0.2rem 0.85rem;
+  font-size: 0.95rem;
+  cursor: pointer;
+  background: var(--cloud);
+  box-shadow: 0 3px 0 var(--outline);
+}
+button.tag-pill:hover {
+  background: var(--tag-bg);
+}
+button.tag-pill[aria-pressed='true'] {
+  background: var(--tag-bg);
+  border-color: var(--primary-edge);
+  box-shadow: 0 3px 0 var(--primary-edge);
+}
+
+.tag-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+/* Pinned to the bottom of the card so tags line up across a row. */
+.card-tags {
+  margin-top: auto;
+  padding-top: 0.7rem;
+}
+
+.tag-filter {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0 0 1.3rem;
+}
+.tag-filter-label {
+  margin-right: 0.2rem;
+  font: 500 1.05rem/1 var(--font-display);
+}
+.tag-count {
+  min-width: 1.4rem;
+  padding: 0 0.35rem;
+  font-size: 0.75rem;
+  text-align: center;
   background: var(--chip);
   border-radius: 999px;
 }
@@ -371,6 +455,9 @@ h3 {
 }
 .meta li:nth-child(4n + 4) {
   background: var(--blossom);
+}
+.meta li.tag-pill {
+  background: var(--tag-bg);
 }
 
 .section-head {

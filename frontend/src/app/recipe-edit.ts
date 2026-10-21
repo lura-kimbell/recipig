@@ -2,7 +2,7 @@ import { Component, OnInit, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
-import { Recipe, Step } from './models';
+import { RECIPE_TAGS, Recipe, RecipeTag, Step, TAG_EMOJI } from './models';
 import { RecipeService, errorMessage, newId } from './recipe.service';
 
 const blank = (): Recipe => ({
@@ -66,6 +66,22 @@ const blank = (): Recipe => ({
             <span>Total time</span>
             <input type="text" [(ngModel)]="draft.totalTime" />
           </label>
+        </div>
+        <div class="field" role="group" aria-labelledby="tags-label">
+          <span id="tags-label">Main ingredient</span>
+          <div class="tag-list">
+            @for (tag of allTags; track tag) {
+              <button
+                type="button"
+                class="tag-pill"
+                [attr.data-tag]="tag"
+                [attr.aria-pressed]="hasTag(tag)"
+                (click)="toggleTag(tag)"
+              >
+                <span aria-hidden="true">{{ tagEmoji[tag] }}</span> {{ tag }}
+              </button>
+            }
+          </div>
         </div>
       </section>
 
@@ -212,6 +228,9 @@ export class RecipeEdit implements OnInit {
   /** Section names already used in this recipe, offered as suggestions. */
   readonly sectionOptions = signal<string[]>([]);
 
+  readonly allTags = RECIPE_TAGS;
+  readonly tagEmoji = TAG_EMOJI;
+
   async ngOnInit(): Promise<void> {
     if (this.route.snapshot.data['mode'] === 'create') {
       this.isNew.set(true);
@@ -284,6 +303,17 @@ export class RecipeEdit implements OnInit {
     const steps = this.draft.steps;
     if (target < 0 || target >= steps.length) return;
     [steps[index], steps[target]] = [steps[target], steps[index]];
+  }
+
+  hasTag(tag: RecipeTag): boolean {
+    return this.draft.tags?.includes(tag) ?? false;
+  }
+
+  /** Tags are kept in the standard order, whichever order they were clicked in. */
+  toggleTag(tag: RecipeTag): void {
+    const current = this.draft.tags ?? [];
+    const next = current.includes(tag) ? current.filter((t) => t !== tag) : [...current, tag];
+    this.draft.tags = RECIPE_TAGS.filter((t) => next.includes(t));
   }
 
   toggleLink(step: Step, ingredientId: string): void {

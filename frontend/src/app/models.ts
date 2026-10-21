@@ -1,3 +1,16 @@
+/** Main-ingredient tags, in the order they are shown. Must match RECIPE_TAGS in backend/src/tags.ts. */
+export const RECIPE_TAGS = ['Chicken', 'Beef', 'Pork', 'Fish', 'Vegetarian'] as const;
+
+export type RecipeTag = (typeof RECIPE_TAGS)[number];
+
+export const TAG_EMOJI: Record<RecipeTag, string> = {
+  Chicken: '🐔',
+  Beef: '🐮',
+  Pork: '🐷',
+  Fish: '🐟',
+  Vegetarian: '🥦',
+};
+
 export interface Ingredient {
   id: string;
   text: string;
@@ -25,6 +38,8 @@ export interface Recipe {
   prepTime?: string;
   cookTime?: string;
   totalTime?: string;
+  /** Main-ingredient tags; omitted when there are none. */
+  tags?: RecipeTag[];
   ingredients: Ingredient[];
   steps: Step[];
   createdAt: string;

@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import { canonicalTag, RECIPE_TAGS } from './tags.ts';
 import type { RecipeDraft } from './types.ts';
 
 export class ValidationError extends Error {}
@@ -46,6 +47,19 @@ function itemList(v: unknown, field: string): unknown[] {
   return v;
 }
 
+/** Known tags only, de-duplicated and in the standard order; undefined when there are none. */
+function tagList(v: unknown) {
+  const chosen = new Set(
+    itemList(v, 'tags').map((raw) => {
+      const tag = typeof raw === 'string' ? canonicalTag(raw) : undefined;
+      if (!tag) throw new ValidationError(`Unknown tag. Tags are: ${RECIPE_TAGS.join(', ')}.`);
+      return tag;
+    }),
+  );
+  const tags = RECIPE_TAGS.filter((t) => chosen.has(t));
+  return tags.length > 0 ? tags : undefined;
+}
+
 /**
  * Validate and normalise a recipe sent by the client. Blank ingredients and
  * steps are dropped, ids are filled in where missing, and step links to
@@ -85,6 +99,7 @@ export function parseRecipeInput(body: unknown): RecipeDraft {
     prepTime: optionalString(body.prepTime, 200, 'prepTime'),
     cookTime: optionalString(body.cookTime, 200, 'cookTime'),
     totalTime: optionalString(body.totalTime, 200, 'totalTime'),
+    tags: tagList(body.tags),
     ingredients,
     steps,
   };

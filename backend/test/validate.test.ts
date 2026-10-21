@@ -69,3 +69,14 @@ test('keeps section labels (trimmed) and leaves out empty ones', () => {
 test('rejects a section label that is not text', () => {
   assert.throws(() => parseRecipeInput({ title: 'T', ingredients: [{ text: 'x', section: 5 }] }), ValidationError);
 });
+
+test('keeps known tags in the standard order, and none means undefined', () => {
+  assert.deepEqual(parseRecipeInput({ title: 'T', tags: ['fish', 'Chicken', 'chicken'] }).tags, ['Chicken', 'Fish']);
+  assert.equal(parseRecipeInput({ title: 'T', tags: [] }).tags, undefined);
+  assert.equal(parseRecipeInput({ title: 'T' }).tags, undefined);
+});
+
+test('rejects unknown tags', () => {
+  assert.throws(() => parseRecipeInput({ title: 'T', tags: ['Lamb'] }), ValidationError);
+  assert.throws(() => parseRecipeInput({ title: 'T', tags: 'Chicken' }), ValidationError);
+});

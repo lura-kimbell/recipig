@@ -163,3 +163,8 @@ test('a stub with no readable ingredients and steps on the page is still not a r
   const html = '<script type="application/ld+json">{"@type":"Recipe","name":"Only a name"}</script><h2>Ingredients</h2>';
   assert.throws(() => extractRecipe(html), NoRecipeError);
 });
+
+test('tags imported recipes by main ingredient', () => {
+  assert.deepEqual(extractRecipe(BLOG_PAGE).tags, ['Vegetarian']);
+  assert.deepEqual(extractRecipe(STUB_JSONLD_PAGE).tags, ['Chicken']);
+});

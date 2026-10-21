@@ -1,3 +1,5 @@
+import type { RecipeTag } from './tags.ts';
+
 export interface Ingredient {
   id: string;
   /** The full ingredient line, e.g. "2 large eggs". */
@@ -26,6 +28,8 @@ export interface Recipe {
   prepTime?: string;
   cookTime?: string;
   totalTime?: string;
+  /** Main-ingredient tags such as "Chicken"; omitted when there are none. */
+  tags?: RecipeTag[];
   ingredients: Ingredient[];
   steps: Step[];
   createdAt: string;

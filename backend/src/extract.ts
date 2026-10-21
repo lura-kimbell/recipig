@@ -1,6 +1,7 @@
 import * as cheerio from 'cheerio';
 import { randomUUID } from 'node:crypto';
 import { linkIngredientsToStep } from './link.ts';
+import { detectTags } from './tags.ts';
 import type { RecipeDraft } from './types.ts';
 
 export class NoRecipeError extends Error {
@@ -367,14 +368,18 @@ export function extractRecipe(html: string, sourceUrl?: string): RecipeDraft {
     ...(s.section ? { section: s.section } : {}),
   }));
 
+  const title = structured?.title || pageTitle($) || 'Untitled recipe';
+  const tags = detectTags(title, ingredients.map((i) => i.text));
+
   return {
-    title: structured?.title || pageTitle($) || 'Untitled recipe',
+    title,
     sourceUrl,
     image: structured?.image ?? firstImage($('meta[property="og:image"]').attr('content'), sourceUrl),
     servings: structured?.servings,
     prepTime: structured?.prepTime,
     cookTime: structured?.cookTime,
     totalTime: structured?.totalTime,
+    ...(tags.length > 0 ? { tags } : {}),
     ingredients,
     steps,
   };

@@ -30,7 +30,7 @@ interface SessionDoc {
 
 type RecipeDoc = Omit<Recipe, 'id'> & { _id: string; userId: string };
 
-const OPTIONAL_FIELDS = ['sourceUrl', 'image', 'servings', 'prepTime', 'cookTime', 'totalTime'] as const;
+const OPTIONAL_FIELDS = ['sourceUrl', 'image', 'servings', 'prepTime', 'cookTime', 'totalTime', 'tags'] as const;
 const DUPLICATE_KEY = 11000;
 
 const isDuplicateKey = (err: unknown) => (err as { code?: unknown })?.code === DUPLICATE_KEY;
