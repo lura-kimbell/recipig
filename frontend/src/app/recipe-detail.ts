@@ -1,7 +1,7 @@
 import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
-import { Ingredient, Recipe, Step, TAG_EMOJI, groupBySection } from './models';
+import { Ingredient, Recipe, Step, groupBySection } from './models';
 import { RecipeService, errorMessage, hostOf } from './recipe.service';
 import { scaleIngredientText } from './scale';
 
@@ -43,7 +43,7 @@ import { scaleIngredientText } from './scale';
           <li>Total: {{ r.totalTime }}</li>
         }
         @for (tag of r.tags ?? []; track tag) {
-          <li class="tag-pill" [attr.data-tag]="tag"><span aria-hidden="true">{{ tagEmoji[tag] }}</span> {{ tag }}</li>
+          <li class="tag-pill" [attr.data-tag]="tag"><span class="tag-icon" aria-hidden="true"></span>{{ tag }}</li>
         }
       </ul>
 
@@ -160,7 +160,6 @@ export class RecipeDetail implements OnInit {
   readonly open = signal<ReadonlySet<string>>(new Set());
 
   readonly host = hostOf;
-  readonly tagEmoji = TAG_EMOJI;
 
   /** Batch sizes offered; the recipe as written is 1x. */
   readonly multipliers = [1, 2, 3, 4] as const;

@@ -1,7 +1,7 @@
 import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
-import { RECIPE_TAGS, Recipe, RecipeTag, TAG_EMOJI } from './models';
+import { RECIPE_TAGS, Recipe, RecipeTag } from './models';
 import { RecipeService, errorMessage } from './recipe.service';
 
 const PLACEHOLDER_EMOJI = ['🍳', '🥕', '🍰', '🍓', '🥐', '🍲'];
@@ -33,7 +33,7 @@ const PLACEHOLDER_EMOJI = ['🍳', '🥕', '🍰', '🍓', '🥐', '🍲'];
             [attr.aria-pressed]="isSelected(tag)"
             (click)="toggleTag(tag)"
           >
-            <span aria-hidden="true">{{ tagEmoji[tag] }}</span> {{ tag }}
+            <span class="tag-icon" aria-hidden="true"></span>{{ tag }}
             <span class="tag-count">{{ tagCounts()[tag] }}</span>
           </button>
         }
@@ -63,7 +63,7 @@ const PLACEHOLDER_EMOJI = ['🍳', '🥕', '🍰', '🍓', '🥐', '🍲'];
                 <ul class="tag-list card-tags" aria-label="Tags">
                   @for (tag of r.tags; track tag) {
                     <li class="tag-pill" [attr.data-tag]="tag">
-                      <span aria-hidden="true">{{ tagEmoji[tag] }}</span> {{ tag }}
+                      <span class="tag-icon" aria-hidden="true"></span>{{ tag }}
                     </li>
                   }
                 </ul>
@@ -85,7 +85,6 @@ export class RecipeList implements OnInit {
   readonly error = signal('');
 
   readonly allTags = RECIPE_TAGS;
-  readonly tagEmoji = TAG_EMOJI;
   /** Tags picked in the filter; kept in the URL (?tag=Chicken&tag=Fish) so Back returns to the same view. */
   readonly selected = signal<RecipeTag[]>([]);
 

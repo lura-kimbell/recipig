@@ -3,14 +3,6 @@ export const RECIPE_TAGS = ['Chicken', 'Beef', 'Pork', 'Fish', 'Vegetarian'] as 
 
 export type RecipeTag = (typeof RECIPE_TAGS)[number];
 
-export const TAG_EMOJI: Record<RecipeTag, string> = {
-  Chicken: '🐔',
-  Beef: '🐮',
-  Pork: '🐷',
-  Fish: '🐟',
-  Vegetarian: '🥦',
-};
-
 export interface Ingredient {
   id: string;
   text: string;

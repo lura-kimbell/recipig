@@ -306,18 +306,32 @@ h3 {
 }
 .tag-pill[data-tag='Chicken'] {
   --tag-bg: var(--butter);
+  --tag-icon: url('/tag-icons/chicken.svg');
 }
 .tag-pill[data-tag='Beef'] {
   --tag-bg: var(--blossom);
+  --tag-icon: url('/tag-icons/beef.svg');
 }
 .tag-pill[data-tag='Pork'] {
   --tag-bg: var(--peach);
+  --tag-icon: url('/tag-icons/pork.svg');
 }
 .tag-pill[data-tag='Fish'] {
   --tag-bg: var(--sky);
+  --tag-icon: url('/tag-icons/fish.svg');
 }
 .tag-pill[data-tag='Vegetarian'] {
   --tag-bg: var(--mint);
+  --tag-icon: url('/tag-icons/vegetarian.svg');
+}
+/* MingCute line icons (public/tag-icons), used as a mask so they take the text colour. */
+.tag-icon {
+  flex: none;
+  width: 1.15em;
+  height: 1.15em;
+  background: currentColor;
+  -webkit-mask: var(--tag-icon) center / contain no-repeat;
+  mask: var(--tag-icon) center / contain no-repeat;
 }
 
 /* As a toggle (list filter, editor): plain until picked, then its colour. */

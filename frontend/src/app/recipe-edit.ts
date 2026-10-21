@@ -2,7 +2,7 @@ import { Component, OnInit, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
-import { RECIPE_TAGS, Recipe, RecipeTag, Step, TAG_EMOJI } from './models';
+import { RECIPE_TAGS, Recipe, RecipeTag, Step } from './models';
 import { RecipeService, errorMessage, newId } from './recipe.service';
 
 const blank = (): Recipe => ({
@@ -78,7 +78,7 @@ const blank = (): Recipe => ({
                 [attr.aria-pressed]="hasTag(tag)"
                 (click)="toggleTag(tag)"
               >
-                <span aria-hidden="true">{{ tagEmoji[tag] }}</span> {{ tag }}
+                <span class="tag-icon" aria-hidden="true"></span>{{ tag }}
               </button>
             }
           </div>
@@ -229,7 +229,6 @@ export class RecipeEdit implements OnInit {
   readonly sectionOptions = signal<string[]>([]);
 
   readonly allTags = RECIPE_TAGS;
-  readonly tagEmoji = TAG_EMOJI;
 
   async ngOnInit(): Promise<void> {
     if (this.route.snapshot.data['mode'] === 'create') {
