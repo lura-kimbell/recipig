@@ -4,13 +4,15 @@ A personal recipe app. Paste a link to a recipe and Recipig saves just the recip
 
 ## Features
 
-- **Accounts.** Create an account with just a username and password (no email), log in and log out. Usernames are unique (Alice and alice are the same). Every recipe you import, create or edit belongs to your account, and nobody else can see it. There is no password reset, so pick one you'll remember.
+- **Accounts.** Create an account with just a username and password (no email), log in and log out. On a hosted site, sign-up can require an invite code (see `SIGNUP_CODE`). Usernames are unique (Alice and alice are the same). Every recipe you import, create or edit belongs to your account, and nobody else can see it. There is no password reset, so pick one you'll remember.
 - **New Recipe menu.** The button in the header offers **Create New Recipe** (the edit form, empty) and **Import from URL**.
 - **Import from a URL.** Reads the recipe data that sites publish for search engines (schema.org JSON-LD, then microdata). If a page has none, or only a stub, it reads the lists under the page's "Ingredients" and "Directions" headings instead. You get the title, times, ingredients and steps only.
 - **Saved recipes.** Imported recipes are stored and listed so you can come back to them.
 - **Sections.** Ingredients and steps can be grouped under labels such as "Brine" or "Sauce". Imports keep the page's labels; in the editor, type a label in an item's Section box (items with the same label are grouped).
 - **Edit.** Change the title, image, times, ingredients, steps and sections; add, remove and reorder ingredients and steps. The image is a link to a picture (paste any image address; clear the box to remove it), for imported and hand-made recipes alike. In each step's "Ingredients shown with this step" list, an ingredient's section appears as a small tag beside its name.
 - **Batch size.** Buttons at the top of a recipe (1x, 2x, 3x, 4x) multiply every ingredient amount, both in the ingredient list and in each step's ingredient reminder. Fractions stay fractions (3/4 cup doubled is 1 1/2 cups) and units follow along (1 cup becomes 2 cups, 1 egg becomes 2 eggs). Servings scale too. Your saved recipe is never changed.
+- **Tags.** Recipes can be tagged by main ingredient: Chicken, Beef, Pork, Fish or Vegetarian. Imports guess the tags from the title and ingredients; change them in the editor. The recipe list can be filtered by tag, cards show the tag icons, and the recipe page shows the tags beside the times.
+- **Nutrition estimate.** The recipe page estimates calories, protein, carbohydrates (fiber, sugar), fat and sodium from the ingredient list, per serving and for the whole batch (it follows the batch size). Lines without an amount, or with a food that isn't in the built-in table, are listed as not counted.
 - **Shopping checkboxes.** Tick off ingredients as you buy them; ticks are saved.
 - **Ingredients alongside each step.** Each step has an expandable section repeating the quantities of the ingredients it mentions (for "mix the eggs with the cheese" you'll see "2 large eggs" and "3/4 cup sharp cheddar cheese"). Links are detected automatically on import and can be corrected in the editor.
 
@@ -86,7 +88,7 @@ Running it twice is safe: recipes already imported are skipped.
 
 ```bash
 cd backend && npm test    # API, accounts, importer, storage
-cd frontend && npm test   # batch-size maths, safe redirects
+cd frontend && npm test   # batch-size maths, nutrition estimate, safe redirects
 ```
 
 The MongoDB storage tests are skipped unless you point them at a database (each test makes and drops its own temporary one):
@@ -105,8 +107,12 @@ backend/    Express + TypeScript API
   src/stores.ts     storage interfaces (users, sessions, recipes)
   src/mongoStores.ts  MongoDB implementation (memoryStores.ts is the test stand-in)
   src/authRoutes.ts   register, login, logout, session lookup
+  src/tags.ts       main-ingredient tags and import-time guessing
   scripts/importJson.ts  move an old recipes.json into an account
 frontend/   Angular app (standalone components, signals)
+  src/app/nutrition.ts, nutrition-data.ts  nutrition estimate and food table
+  public/tag-icons/  tag icons (MingCute, Apache 2.0)
+render.yaml  Render Blueprint for hosting
 ```
 
 ## Limitations
@@ -115,4 +121,6 @@ frontend/   Angular app (standalone components, signals)
 - Import works for sites that publish structured recipe data, which is most big recipe sites. Pages without it are rejected with a clear message.
 - Pages that need JavaScript to show the recipe, or that block automated requests, may not import.
 - Batch size only multiplies ingredient lines (and servings). Amounts written inside the step text ("add 1 cup of water") are left as written, and odd phrasing can slip through, so glance at the scaled list before you shop.
+- Nutrition is an estimate from a table of about 200 common foods with typical values; brands, cooking losses and unusual ingredients aren't accounted for.
+- Tags are guessed from words in the title and ingredients, so check them after importing.
 - Ingredient-to-step matching is keyword based. It's good, not perfect, so use the editor to fix a link. When two ingredients share a name (salt in both the brine and the seasoning), the step's section decides which one it shows.

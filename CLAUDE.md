@@ -30,16 +30,10 @@ Personal recipe app: import a recipe from a URL (recipe only, no blog fluff), sa
 
 ## Status
 
-- Accounts and MongoDB (added in a no-npm session): verified here under plain `node --test`: password hashing, cookie/session helpers, rate limiter, credential rules, the in-memory stores against the shared store contract, and the frontend `safeReturnUrl`. NOT run: `mongoStores.ts` (contract tests skip without `TEST_MONGODB_URI`; run `cd backend && TEST_MONGODB_URI=mongodb://127.0.0.1:27017 npm test`), the Express auth routes and rewritten `app.test.ts`, `tsc`, and all new Angular code (`auth-*.ts`, header, guards, interceptor). Expect small fixes on first run.
-- Editor tweaks (ingredient reorder buttons, image link field with preview, section tags in the step ingredient picker): Angular template and CSS only, unrun and unseen.
-- Favicon is now a hand-drawn SVG pig snout (`frontend/public/favicon.svg`); checked at 16-128px in Chromium.
-
-Written in sessions with no access to the npm registry, so nothing that needs `npm install` has been run by Claude:
-
-- Verified here: `link`, `validate`, and `fetchPage` (address guard) tests pass under plain `node --test`.
-- Not run by Claude: `extract` and `app` tests (need cheerio/express), `tsc` typecheck, the Angular build. The owner has since run the app locally and imported recipes successfully, but has not reported the test results.
-- Extractor fallback: when a page's structured data is missing or a stub (e.g. a Webflow site whose JSON-LD has no ingredients or steps because a script adds them in the browser), `extract.ts` reads the lists under the page's "Ingredients" and "Directions" headings. Its tests were written against the structure of a real page but have not been run: run `cd backend && npm test` and fix anything that fails.
-- Sections, the create endpoint, the header menu, the blank-recipe form and the import page were added later in the same no-npm situation: their `extract` and `app` tests and all Angular code are unrun. Expect to fix small template or type errors on the first `npm start`.
-- The restyle was checked by rendering static mock pages that use the real stylesheet (light, desktop, phone; the dark theme has since been removed); it has not been seen in the running Angular app.
-- Batch size: the scaling logic (`scale.ts`, 18 test groups) was run and passes under plain `node --test`; the buttons and template wiring in `recipe-detail.ts` are unrun, as is the new `tsx` dev dependency in `frontend/package.json`.
+- Live on Render (Blueprint in `render.yaml`) with MongoDB Atlas; the owner uses it day to day.
+- Verified on 2026-10-21: backend `npm test` with `TEST_MONGODB_URI` set (76 tests, including the Mongo store contract and the Express/auth `app` tests), `npm run typecheck`, frontend `npm test` (29) and the same files under plain `node --test`, and `ng build`. Render's build and start commands were also run from a clean copy with production settings.
+- Seen in a browser: recipe list (tags, filter, cards), recipe page (meta pills, batch size, nutrition), the editor's tag toggles, login/sign-up (invite code), header at desktop and phone widths.
+- Not yet looked at in a browser: the editor's ingredient reorder buttons, image-link preview and section tags in the step ingredient picker (they build and type-check).
+- Nutrition values were written from USDA reference figures; only flour, butter, whole milk and 85% ground beef were checked against the live FoodData Central API (DEMO_KEY rate limits stopped the rest). Treat other rows as approximate and correct them when a recipe looks off.
+- Running a preview server from a tool: stopping the background task does not stop the `tsx` child process. Kill the node process too, or it keeps the port.
 - Both `package-lock.json` files are committed; commit lockfile changes along with any dependency change.
