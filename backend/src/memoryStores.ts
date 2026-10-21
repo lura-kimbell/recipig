@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import type { Recipe, RecipeDraft } from './types.ts';
 import { UsernameTakenError } from './stores.ts';
-import type { RecipeStore, SessionRecord, SessionStore, Stores, User, UserStore } from './stores.ts';
+import type { RecipeStore, SessionRecord, SessionStore, Stores, Theme, User, UserStore } from './stores.ts';
 
 /** In-memory stand-ins for the Mongo stores. Used by the tests; nothing is saved to disk. */
 
@@ -25,6 +25,12 @@ class MemoryUserStore implements UserStore {
   async findById(id: string): Promise<User | undefined> {
     const found = this.users.find((u) => u.id === id);
     return found && { ...found };
+  }
+
+  async setTheme(id: string, theme: Theme): Promise<boolean> {
+    const found = this.users.find((u) => u.id === id);
+    if (found) found.theme = theme;
+    return found !== undefined;
   }
 }
 

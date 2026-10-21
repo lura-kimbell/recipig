@@ -12,15 +12,27 @@ export interface User {
   username: string;
   passwordHash: string;
   createdAt: string;
+  /** The look they picked (one of THEMES); absent means the default. */
+  theme?: Theme;
 }
+
+/** The app's looks. The first is the default. */
+export const THEMES = ['friendly', 'aurora', 'terminal'] as const;
+export type Theme = (typeof THEMES)[number];
+export const isTheme = (v: unknown): v is Theme => typeof v === 'string' && (THEMES as readonly string[]).includes(v);
 
 /** The part of a user that is safe to send to the browser. */
 export interface PublicUser {
   id: string;
   username: string;
+  theme: Theme;
 }
 
-export const toPublicUser = (user: User): PublicUser => ({ id: user.id, username: user.username });
+export const toPublicUser = (user: User): PublicUser => ({
+  id: user.id,
+  username: user.username,
+  theme: user.theme ?? THEMES[0],
+});
 
 export interface SessionRecord {
   userId: string;
@@ -38,6 +50,8 @@ export interface UserStore {
   create(username: string, passwordHash: string): Promise<User>;
   findByUsername(username: string): Promise<User | undefined>;
   findById(id: string): Promise<User | undefined>;
+  /** Saves the user's theme; false if there is no such user. */
+  setTheme(id: string, theme: Theme): Promise<boolean>;
 }
 
 export interface SessionStore {

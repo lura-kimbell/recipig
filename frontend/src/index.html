@@ -7,10 +7,17 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="theme-color" content="#ffd5e1" />
     <link rel="icon" type="image/svg+xml" href="favicon.svg" />
+    <script>
+      // Start in the theme picked last time, before the app loads, so the page doesn't flash another one.
+      try {
+        var theme = localStorage.getItem('recipig-theme');
+        if (theme === 'aurora' || theme === 'terminal' || theme === 'friendly') document.documentElement.dataset.theme = theme;
+      } catch (e) {}
+    </script>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400..700&family=Nunito:wght@400..800&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400..700&family=Google+Sans+Code:wght@300..800&family=Nunito:wght@400..800&display=swap"
       rel="stylesheet"
     />
   </head>

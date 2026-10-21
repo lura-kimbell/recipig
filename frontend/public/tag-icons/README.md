@@ -11,3 +11,4 @@ colour comes from the text colour and the fill in these files doesn't matter.
 | pork.svg       | pig-line      |
 | fish.svg       | fish-line     |
 | vegetarian.svg | carrot-line   |
+| user.svg       | user-3-line (the account menu button on phones) |

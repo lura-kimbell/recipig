@@ -13,7 +13,7 @@ import {
   SESSION_DAYS,
   sessionCookie,
 } from './session.ts';
-import { toPublicUser } from './stores.ts';
+import { isTheme, THEMES, toPublicUser } from './stores.ts';
 import type { PublicUser, Stores } from './stores.ts';
 import { ValidationError } from './validate.ts';
 
@@ -132,6 +132,15 @@ export function createAuth(stores: Stores, options: AuthOptions = {}) {
   router.get('/me', (_req, res) => {
     if (!res.locals.user) throw new AuthError('Not logged in.');
     res.json(res.locals.user);
+  });
+
+  /** Saves the logged-in person's choice of look. */
+  router.put('/theme', requireUser, async (req, res) => {
+    const theme: unknown = req.body?.theme;
+    if (!isTheme(theme)) throw new ValidationError(`Theme must be one of: ${THEMES.join(', ')}.`);
+    const user = currentUser(res);
+    await stores.users.setTheme(user.id, theme);
+    res.json({ ...user, theme });
   });
 
   return { router, loadUser, requireUser };

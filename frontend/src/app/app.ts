@@ -1,10 +1,14 @@
-import { Component, ElementRef, inject, signal, viewChild } from '@angular/core';
+import { Component, ElementRef, effect, inject, signal, viewChild } from '@angular/core';
 import { Router, RouterLink, RouterOutlet } from '@angular/router';
 import { AuthService } from './auth.service';
+import { ThemePicker } from './theme-picker';
+import { ThemeService, isThemeId } from './theme.service';
+
+type MenuName = 'new' | 'user';
 
 @Component({
   selector: 'app-root',
-  imports: [RouterOutlet, RouterLink],
+  imports: [RouterOutlet, RouterLink, ThemePicker],
   host: {
     '(document:click)': 'onDocumentClick($event)',
     '(document:keydown.escape)': 'closeMenu(true)',
@@ -20,26 +24,43 @@ import { AuthService } from './auth.service';
           <div class="topbar-actions">
             <div class="menu-wrap">
               <button
-                #toggle
+                #newToggle
                 type="button"
                 class="btn primary"
                 aria-controls="new-recipe-menu"
-                [attr.aria-expanded]="menuOpen()"
-                (click)="toggleMenu()"
+                [attr.aria-expanded]="openMenu() === 'new'"
+                (click)="toggleMenu('new')"
               >
                 New Recipe <span aria-hidden="true">▾</span>
               </button>
-              @if (menuOpen()) {
+              @if (openMenu() === 'new') {
                 <ul id="new-recipe-menu" class="menu">
                   <li><a routerLink="/recipes/new" (click)="closeMenu()">From Scratch</a></li>
                   <li><a routerLink="/import" (click)="closeMenu()">From URL</a></li>
                 </ul>
               }
             </div>
-            <span class="whoami">
-              <span class="whoami-name" title="Logged in as {{ user.username }}">{{ user.username }}</span>
-              <button type="button" class="btn small" (click)="logout()">Log out</button>
-            </span>
+            <div class="menu-wrap">
+              <button
+                #userToggle
+                type="button"
+                class="btn user-toggle"
+                aria-controls="user-menu"
+                [attr.aria-expanded]="openMenu() === 'user'"
+                [attr.aria-label]="'Account menu for ' + user.username"
+                (click)="toggleMenu('user')"
+              >
+                <span class="user-icon" aria-hidden="true"></span>
+                <span class="whoami-name">{{ user.username }}</span> <span aria-hidden="true">▾</span>
+              </button>
+              @if (openMenu() === 'user') {
+                <ul id="user-menu" class="menu">
+                  <li><button type="button" (click)="openThemePicker()">Change theme</button></li>
+                  <li role="separator"><hr /></li>
+                  <li><button type="button" (click)="logout()">Log out</button></li>
+                </ul>
+              }
+            </div>
           </div>
         } @else {
           <nav class="topbar-actions" aria-label="Account">
@@ -52,24 +73,42 @@ import { AuthService } from './auth.service';
     <main class="container">
       <router-outlet />
     </main>
+    <app-theme-picker />
   `,
 })
 export class App {
   protected readonly auth = inject(AuthService);
+  private readonly theme = inject(ThemeService);
   private readonly router = inject(Router);
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
-  private readonly toggle = viewChild<ElementRef<HTMLButtonElement>>('toggle');
+  private readonly newToggle = viewChild<ElementRef<HTMLButtonElement>>('newToggle');
+  private readonly userToggle = viewChild<ElementRef<HTMLButtonElement>>('userToggle');
+  private readonly themePicker = viewChild.required(ThemePicker);
 
-  readonly menuOpen = signal(false);
+  readonly openMenu = signal<MenuName | null>(null);
 
-  toggleMenu(): void {
-    this.menuOpen.update((open) => !open);
+  constructor() {
+    // Logging in (or coming back logged in) brings the account's theme with it.
+    effect(() => {
+      const theme = this.auth.user()?.theme;
+      if (isThemeId(theme)) this.theme.apply(theme);
+    });
+  }
+
+  toggleMenu(name: MenuName): void {
+    this.openMenu.update((open) => (open === name ? null : name));
   }
 
   closeMenu(refocus = false): void {
-    if (!this.menuOpen()) return;
-    this.menuOpen.set(false);
-    if (refocus) this.toggle()?.nativeElement.focus();
+    const open = this.openMenu();
+    if (!open) return;
+    this.openMenu.set(null);
+    if (refocus) (open === 'new' ? this.newToggle() : this.userToggle())?.nativeElement.focus();
+  }
+
+  openThemePicker(): void {
+    this.closeMenu();
+    this.themePicker().open();
   }
 
   async logout(): Promise<void> {
@@ -81,9 +120,11 @@ export class App {
     }
   }
 
-  /** Clicking anywhere outside the button and its menu closes the menu. */
+  /** Clicking anywhere outside the open menu and its button closes it. */
   onDocumentClick(event: Event): void {
-    const wrap = this.host.nativeElement.querySelector('.menu-wrap');
-    if (wrap && !wrap.contains(event.target as Node)) this.closeMenu();
+    const inside = [...this.host.nativeElement.querySelectorAll('.menu-wrap')].some((wrap) =>
+      wrap.contains(event.target as Node),
+    );
+    if (!inside) this.closeMenu();
   }
 }

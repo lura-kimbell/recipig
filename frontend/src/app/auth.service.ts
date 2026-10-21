@@ -5,6 +5,8 @@ import { firstValueFrom } from 'rxjs';
 export interface User {
   id: string;
   username: string;
+  /** The look they picked; see ThemeService. */
+  theme?: string;
 }
 
 @Injectable({ providedIn: 'root' })

@@ -20,7 +20,7 @@ import { scaleIngredientText } from './scale';
       <a routerLink="/" class="back">← All recipes</a>
 
       <header class="recipe-head">
-        <h1>{{ r.title }}</h1>
+        <h1 class="recipe-title">{{ r.title }}</h1>
         <div class="actions">
           <a class="btn" [routerLink]="['/recipes', r.id, 'edit']">Edit</a>
           <button type="button" class="btn danger" (click)="remove(r)">Delete</button>
@@ -120,9 +120,9 @@ import { scaleIngredientText } from './scale';
           @if (group.section) {
             <h3 class="group-title">{{ group.section }}</h3>
           }
-          <ol class="steps" role="list">
+          <ol class="steps" role="list" [attr.start]="stepNumber(group.items[0])">
             @for (step of group.items; track step.id) {
-              <li>
+              <li [attr.data-step]="stepNumber(step)">
                 <p>{{ step.text }}</p>
                 @if (linked(step).length > 0) {
                   <button
@@ -247,6 +247,8 @@ export class RecipeDetail implements OnInit {
 
   readonly ingredientGroups = computed(() => groupBySection(this.recipe()?.ingredients ?? []));
   readonly stepGroups = computed(() => groupBySection(this.recipe()?.steps ?? []));
+  /** Steps are numbered through the whole recipe, not restarting in each section. */
+  private readonly stepNumbers = computed(() => new Map((this.recipe()?.steps ?? []).map((s, i) => [s.id, i + 1])));
   readonly purchased = computed(() => this.recipe()?.ingredients.filter((i) => i.checked).length ?? 0);
   readonly linkedStepIds = computed(
     () => this.recipe()?.steps.filter((s) => s.ingredientIds.length > 0).map((s) => s.id) ?? [],
@@ -283,6 +285,10 @@ export class RecipeDetail implements OnInit {
   /** An ingredient as it should read at the chosen batch size. */
   amount(ingredient: Ingredient): string {
     return this.scaledAmounts().get(ingredient.id) ?? ingredient.text;
+  }
+
+  stepNumber(step: Step): number {
+    return this.stepNumbers().get(step.id) ?? 0;
   }
 
   linked(step: Step): Ingredient[] {

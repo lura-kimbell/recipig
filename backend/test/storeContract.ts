@@ -33,6 +33,15 @@ export function runStoreContract(name: string, open: () => Promise<{ stores: Sto
     assert.equal(await users.findById('nope'), undefined);
   });
 
+  t("a user's theme is saved and comes back with the user", async ({ users }) => {
+    const a = await users.create('Alice', 'hash');
+    assert.equal((await users.findById(a.id))?.theme, undefined);
+    assert.equal(await users.setTheme(a.id, 'aurora'), true);
+    assert.equal((await users.findById(a.id))?.theme, 'aurora');
+    assert.equal((await users.findByUsername('alice'))?.theme, 'aurora');
+    assert.equal(await users.setTheme('nope', 'terminal'), false);
+  });
+
   t('sessions can be created, found, and deleted', async ({ sessions }) => {
     const expiresAt = new Date(Date.now() + 60_000);
     await sessions.create('hash1', 'user1', expiresAt);

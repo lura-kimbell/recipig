@@ -236,3 +236,15 @@ test('without an invite code set, anyone can sign up', async () => {
     assert.deepEqual((await newClient()('GET', '/api/auth/signup')).json, { inviteCodeRequired: false });
   });
 });
+
+test("each person's theme is saved on their account", async () => {
+  await withServer(okPage, async (alice, newClient) => {
+    assert.equal((await alice('GET', '/api/auth/me')).json.theme, 'friendly');
+    const saved = await alice('PUT', '/api/auth/theme', { theme: 'terminal' });
+    assert.equal(saved.status, 200);
+    assert.equal(saved.json.theme, 'terminal');
+    assert.equal((await alice('GET', '/api/auth/me')).json.theme, 'terminal');
+    assert.equal((await alice('PUT', '/api/auth/theme', { theme: 'neon' })).status, 400);
+    assert.equal((await newClient()('PUT', '/api/auth/theme', { theme: 'aurora' })).status, 401);
+  });
+});

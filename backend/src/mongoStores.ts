@@ -3,7 +3,7 @@ import { MongoClient } from 'mongodb';
 import type { Collection, Db } from 'mongodb';
 import type { Recipe, RecipeDraft } from './types.ts';
 import { UsernameTakenError } from './stores.ts';
-import type { RecipeStore, SessionRecord, SessionStore, Stores, User, UserStore } from './stores.ts';
+import type { RecipeStore, SessionRecord, SessionStore, Stores, Theme, User, UserStore } from './stores.ts';
 
 /**
  * MongoDB storage. Documents use our own UUID strings as `_id`, so ids look the
@@ -20,6 +20,7 @@ interface UserDoc {
   usernameLower: string;
   passwordHash: string;
   createdAt: string;
+  theme?: Theme;
 }
 
 interface SessionDoc {
@@ -53,7 +54,13 @@ class MongoUserStore implements UserStore {
   }
 
   private static toUser(doc: UserDoc): User {
-    return { id: doc._id, username: doc.username, passwordHash: doc.passwordHash, createdAt: doc.createdAt };
+    return {
+      id: doc._id,
+      username: doc.username,
+      passwordHash: doc.passwordHash,
+      createdAt: doc.createdAt,
+      ...(doc.theme ? { theme: doc.theme } : {}),
+    };
   }
 
   async create(username: string, passwordHash: string): Promise<User> {
@@ -81,6 +88,11 @@ class MongoUserStore implements UserStore {
   async findById(id: string): Promise<User | undefined> {
     const doc = await this.col.findOne({ _id: id });
     return doc ? MongoUserStore.toUser(doc) : undefined;
+  }
+
+  async setTheme(id: string, theme: Theme): Promise<boolean> {
+    const result = await this.col.updateOne({ _id: id }, { $set: { theme } });
+    return result.matchedCount === 1;
   }
 }
 
