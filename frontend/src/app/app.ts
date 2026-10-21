@@ -12,7 +12,10 @@ import { AuthService } from './auth.service';
   template: `
     <header class="topbar">
       <div class="topbar-inner">
-        <a routerLink="/" class="brand">🐷 Recipig</a>
+        <a routerLink="/" class="brand">
+          <span class="brand-icon" aria-hidden="true"></span>
+          <span class="brand-name">Recipig</span>
+        </a>
         @if (auth.user(); as user) {
           <div class="topbar-actions">
             <div class="menu-wrap">
