@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import type { Recipe, RecipeDraft } from './types.ts';
-import { UsernameTakenError } from './stores.ts';
+import { foldStepNotes, UsernameTakenError } from './stores.ts';
 import type { RecipeStore, SessionRecord, SessionStore, Stores, Theme, User, UserStore } from './stores.ts';
 
 /** In-memory stand-ins for the Mongo stores. Used by the tests; nothing is saved to disk. */
@@ -57,13 +57,13 @@ class MemoryRecipeStore implements RecipeStore {
   async list(userId: string): Promise<Recipe[]> {
     return this.rows
       .filter((r) => r.userId === userId)
-      .map((r) => structuredClone(r.recipe))
+      .map((r) => foldStepNotes(structuredClone(r.recipe)))
       .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   }
 
   async get(userId: string, id: string): Promise<Recipe | undefined> {
     const row = this.rows.find((r) => r.userId === userId && r.recipe.id === id);
-    return row && structuredClone(row.recipe);
+    return row && foldStepNotes(structuredClone(row.recipe));
   }
 
   async create(userId: string, draft: RecipeDraft): Promise<Recipe> {

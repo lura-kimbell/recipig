@@ -88,16 +88,7 @@ export function parseRecipeInput(body: unknown): RecipeDraft {
     const linked = Array.isArray(raw.ingredientIds) ? raw.ingredientIds : [];
     const links = [...new Set(linked.filter((id): id is string => typeof id === 'string' && ingredientIds.has(id)))];
     const section = optionalString(raw.section, MAX_SECTION, 'section');
-    const notes = optionalString(raw.notes, MAX_TEXT, 'step notes');
-    return [
-      {
-        id: uniqueId(raw.id, stepIds),
-        text,
-        ingredientIds: links,
-        ...(section ? { section } : {}),
-        ...(notes ? { notes } : {}),
-      },
-    ];
+    return [{ id: uniqueId(raw.id, stepIds), text, ingredientIds: links, ...(section ? { section } : {}) }];
   });
 
   return {
@@ -108,6 +99,7 @@ export function parseRecipeInput(body: unknown): RecipeDraft {
     prepTime: optionalString(body.prepTime, 200, 'prepTime'),
     cookTime: optionalString(body.cookTime, 200, 'cookTime'),
     totalTime: optionalString(body.totalTime, 200, 'totalTime'),
+    notes: optionalString(body.notes, MAX_TEXT, 'notes'),
     tags: tagList(body.tags),
     ingredients,
     steps,

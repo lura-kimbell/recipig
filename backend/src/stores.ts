@@ -34,6 +34,26 @@ export const toPublicUser = (user: User): PublicUser => ({
   theme: user.theme ?? THEMES[0],
 });
 
+/**
+ * For a while (October 2026) each step could carry its own notes. Those now belong
+ * in the recipe's notes, so a recipe read from storage has any step notes moved
+ * there as "Step 2: ...". Saving the recipe makes the move permanent.
+ */
+export function foldStepNotes(recipe: Recipe): Recipe {
+  const moved: string[] = [];
+  let found = false;
+  const steps = recipe.steps.map((step, i) => {
+    const { notes, ...rest } = step as typeof step & { notes?: unknown };
+    if (notes === undefined) return step;
+    found = true;
+    if (typeof notes === 'string' && notes.trim()) moved.push(`Step ${i + 1}: ${notes.trim()}`);
+    return rest;
+  });
+  if (!found) return recipe;
+  const notes = [recipe.notes?.trim(), ...moved].filter(Boolean).join('\n\n');
+  return { ...recipe, steps, ...(notes ? { notes } : {}) };
+}
+
 export interface SessionRecord {
   userId: string;
   expiresAt: Date;

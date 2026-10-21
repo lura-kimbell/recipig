@@ -81,17 +81,10 @@ test('rejects unknown tags', () => {
   assert.throws(() => parseRecipeInput({ title: 'T', tags: 'Chicken' }), ValidationError);
 });
 
-test('keeps step notes (trimmed, line breaks and all) and leaves out blank ones', () => {
-  const r = parseRecipeInput({
-    title: 'T',
-    steps: [
-      { text: 'a', notes: '  Use less salt.\nTry 375F next time.  ' },
-      { text: 'b', notes: '   ' },
-      { text: 'c' },
-    ],
-  });
-  assert.equal(r.steps[0].notes, 'Use less salt.\nTry 375F next time.');
-  assert.equal('notes' in r.steps[1], false);
-  assert.equal('notes' in r.steps[2], false);
-  assert.throws(() => parseRecipeInput({ title: 'T', steps: [{ text: 'a', notes: 5 }] }), ValidationError);
+test('keeps recipe notes (trimmed, line breaks and all), and steps no longer carry notes', () => {
+  const r = parseRecipeInput({ title: 'T', notes: '  Use less salt.\nTry 375F next time.  ', steps: [{ text: 'a', notes: 'x' }] });
+  assert.equal(r.notes, 'Use less salt.\nTry 375F next time.');
+  assert.equal('notes' in r.steps[0], false);
+  assert.equal(parseRecipeInput({ title: 'T', notes: '   ' }).notes, undefined);
+  assert.throws(() => parseRecipeInput({ title: 'T', notes: 5 }), ValidationError);
 });

@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { MongoClient } from 'mongodb';
 import type { Collection, Db } from 'mongodb';
 import type { Recipe, RecipeDraft } from './types.ts';
-import { UsernameTakenError } from './stores.ts';
+import { foldStepNotes, UsernameTakenError } from './stores.ts';
 import type { RecipeStore, SessionRecord, SessionStore, Stores, Theme, User, UserStore } from './stores.ts';
 
 /**
@@ -31,7 +31,7 @@ interface SessionDoc {
 
 type RecipeDoc = Omit<Recipe, 'id'> & { _id: string; userId: string };
 
-const OPTIONAL_FIELDS = ['sourceUrl', 'image', 'servings', 'prepTime', 'cookTime', 'totalTime', 'tags'] as const;
+const OPTIONAL_FIELDS = ['sourceUrl', 'image', 'servings', 'prepTime', 'cookTime', 'totalTime', 'notes', 'tags'] as const;
 const DUPLICATE_KEY = 11000;
 
 const isDuplicateKey = (err: unknown) => (err as { code?: unknown })?.code === DUPLICATE_KEY;
@@ -43,7 +43,7 @@ function stripUndefined<T>(value: T): T {
 
 function toRecipe(doc: RecipeDoc): Recipe {
   const { _id, userId: _userId, ...rest } = doc;
-  return { id: _id, ...rest };
+  return foldStepNotes({ id: _id, ...rest });
 }
 
 class MongoUserStore implements UserStore {

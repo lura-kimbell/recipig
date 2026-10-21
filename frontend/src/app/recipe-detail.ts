@@ -56,6 +56,13 @@ import { scaleIngredientText } from './scale';
         </p>
       }
 
+      @if (r.notes?.trim(); as notes) {
+        <section class="card notes-card" aria-labelledby="notes-title">
+          <h2 id="notes-title">Notes</h2>
+          <p class="recipe-notes">{{ notes }}</p>
+        </section>
+      }
+
       <div class="scale" role="group" aria-labelledby="scale-label">
         <span class="scale-label" id="scale-label">Batch size</span>
         <div class="scale-options">
@@ -125,38 +132,21 @@ import { scaleIngredientText } from './scale';
               <li [attr.data-step]="stepNumber(step)">
                 <p>{{ step.text }}</p>
                 @if (linked(step).length > 0) {
-                  <div class="step-fold">
-                    <button
-                      type="button"
-                      class="link-btn"
-                      (click)="toggleStep(step.id)"
-                      [attr.aria-expanded]="isOpen(step.id)"
-                    >
-                      {{ isOpen(step.id) ? '▾' : '▸' }} Ingredients for this step ({{ linked(step).length }})
-                    </button>
-                    @if (isOpen(step.id)) {
-                      <ul class="step-ingredients">
-                        @for (ing of linked(step); track ing.id) {
-                          <li>{{ amount(ing) }}</li>
-                        }
-                      </ul>
-                    }
-                  </div>
-                }
-                @if (step.notes?.trim(); as notes) {
-                  <div class="step-fold">
-                    <button
-                      type="button"
-                      class="link-btn"
-                      (click)="toggleNotes(step.id)"
-                      [attr.aria-expanded]="notesOpen(step.id)"
-                    >
-                      {{ notesOpen(step.id) ? '▾' : '▸' }} Notes
-                    </button>
-                    @if (notesOpen(step.id)) {
-                      <div class="step-ingredients step-notes">{{ notes }}</div>
-                    }
-                  </div>
+                  <button
+                    type="button"
+                    class="link-btn"
+                    (click)="toggleStep(step.id)"
+                    [attr.aria-expanded]="isOpen(step.id)"
+                  >
+                    {{ isOpen(step.id) ? '▾' : '▸' }} Ingredients for this step ({{ linked(step).length }})
+                  </button>
+                  @if (isOpen(step.id)) {
+                    <ul class="step-ingredients">
+                      @for (ing of linked(step); track ing.id) {
+                        <li>{{ amount(ing) }}</li>
+                      }
+                    </ul>
+                  }
                 }
               </li>
             }
@@ -219,8 +209,6 @@ export class RecipeDetail implements OnInit {
   readonly saveError = signal('');
   /** Ids of steps whose ingredient list is expanded. */
   readonly open = signal<ReadonlySet<string>>(new Set());
-  /** Ids of steps whose notes are expanded. */
-  readonly openNotes = signal<ReadonlySet<string>>(new Set());
 
   readonly host = hostOf;
 
@@ -320,18 +308,6 @@ export class RecipeDetail implements OnInit {
 
   toggleStep(stepId: string): void {
     this.open.update((current) => {
-      const next = new Set(current);
-      if (!next.delete(stepId)) next.add(stepId);
-      return next;
-    });
-  }
-
-  notesOpen(stepId: string): boolean {
-    return this.openNotes().has(stepId);
-  }
-
-  toggleNotes(stepId: string): void {
-    this.openNotes.update((current) => {
       const next = new Set(current);
       if (!next.delete(stepId)) next.add(stepId);
       return next;

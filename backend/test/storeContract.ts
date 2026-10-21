@@ -75,7 +75,7 @@ export function runStoreContract(name: string, open: () => Promise<{ stores: Sto
   });
 
   t('update keeps id and createdAt, replaces the rest, and clears optional fields left out', async ({ recipes }) => {
-    const created = await recipes.create('u1', draft('Old', { servings: '4', sourceUrl: 'https://x.example/', tags: ['Chicken'] }));
+    const created = await recipes.create('u1', draft('Old', { servings: '4', sourceUrl: 'https://x.example/', notes: 'n', tags: ['Chicken'] }));
     await new Promise((r) => setTimeout(r, 5));
     const updated = await recipes.update('u1', created.id, draft('New', { ingredients: [{ id: 'i9', text: '1 cup milk', checked: true, section: 'Wet' }] }));
     assert.equal(updated?.id, created.id);
@@ -85,11 +85,30 @@ export function runStoreContract(name: string, open: () => Promise<{ stores: Sto
     assert.equal('servings' in (updated ?? {}), false);
     assert.equal('sourceUrl' in (updated ?? {}), false);
     assert.equal('tags' in (updated ?? {}), false);
+    assert.equal('notes' in (updated ?? {}), false);
 
     const reloaded = await recipes.get('u1', created.id);
     assert.deepEqual(reloaded, updated);
     assert.equal(reloaded?.ingredients[0].section, 'Wet');
     assert.equal(reloaded?.ingredients[0].checked, true);
+  });
+
+  t('old step notes are moved into the recipe notes when read', async ({ recipes }) => {
+    const created = await recipes.create('u1', draft('Old notes', { notes: 'Good with rice.' }));
+    const legacy = {
+      ...created,
+      id: 'legacy-1',
+      steps: [
+        { id: 's1', text: 'Whisk.', ingredientIds: [], notes: '  Whisk longer. ' },
+        { id: 's2', text: 'Cook.', ingredientIds: [], notes: '   ' },
+        { id: 's3', text: 'Serve.', ingredientIds: [] },
+      ],
+    };
+    assert.equal(await recipes.restore('u1', legacy as never), true);
+    const read = await recipes.get('u1', 'legacy-1');
+    assert.equal(read?.notes, 'Good with rice.\n\nStep 1: Whisk longer.');
+    assert.ok(read?.steps.every((s) => !('notes' in s)));
+    assert.equal((await recipes.list('u1')).find((r) => r.id === 'legacy-1')?.notes, read?.notes);
   });
 
   t('remove deletes only that recipe', async ({ recipes }) => {

@@ -15,7 +15,7 @@ A personal recipe app. Paste a link to a recipe and Recipig saves just the recip
 - **Nutrition estimate.** The recipe page estimates calories, protein, carbohydrates (fiber, sugar), fat and sodium from the ingredient list, per serving and for the whole batch (it follows the batch size). Lines without an amount, or with a food that isn't in the built-in table, are listed as not counted.
 - **Themes.** The account menu (your name in the header) has **Change theme**: Friendly (the default pastel village), Aurora (northern lights over a starry sky), Terminal (green-on-dark monospace) or Sanguine (stark black, bone and blood red). Your choice is saved to your account, so it follows you to other devices.
 - **Shopping checkboxes.** Tick off ingredients as you buy them; ticks are saved.
-- **Step notes.** Each step has an optional Notes box in the editor for tweaks you tried or ideas for next time. On the recipe page, a step with notes gets a **Notes** fold beside its ingredients.
+- **Notes.** Each recipe has an optional Notes box in the editor for tweaks you tried or ideas for next time. On the recipe page they appear in their own section above the ingredients.
 - **Ingredients alongside each step.** Each step has an expandable section repeating the quantities of the ingredients it mentions (for "mix the eggs with the cheese" you'll see "2 large eggs" and "3/4 cup sharp cheddar cheese"). Links are detected automatically on import and can be corrected in the editor.
 
 ## Running it

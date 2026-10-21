@@ -353,11 +353,11 @@
 [data-theme='sanguine'] {
   color-scheme: dark;
 
-  /* Carved Roman capitals for headings, an old book face for text. EB Garamond runs
-     small, so everything is a size up. */
+  /* Carved Roman capitals for headings, and a medieval book-hand for text: calligraphic,
+     but upright and easy to read. */
   --font-display: 'Cinzel', 'Trajan Pro', 'Times New Roman', serif;
-  --font-body: 'EB Garamond', Garamond, 'Times New Roman', serif;
-  font-size: 112.5%;
+  --font-body: 'Almendra', 'Palatino Linotype', Palatino, 'Times New Roman', serif;
+  font-size: 106.25%;
 
   --meadow: #0b0909;
   --cloud: #110d0d;
@@ -1196,16 +1196,6 @@ input[type='checkbox']:checked::after {
   border-left: var(--border-w-control) var(--line) var(--leaf);
   transform: rotate(45deg);
 }
-/* Each fold (ingredients, notes) sits on its own line, so its bubble's tail points at its own button. */
-.step-fold + .step-fold {
-  margin-top: 0.35rem;
-}
-/* Notes are the same bubble as a step's ingredients, holding the cook's own text. */
-.step-notes {
-  max-width: 62ch;
-  padding-left: 1.2rem;
-  white-space: pre-line;
-}
 .step-ingredients li::marker {
   color: var(--step-list-marker);
 }
@@ -1314,6 +1304,15 @@ details summary {
     animation: none !important;
     transition: none !important;
   }
+}
+
+/* ---------- Recipe notes ---------- */
+
+.recipe-notes {
+  max-width: 68ch;
+  margin: 0;
+  color: var(--step-ink);
+  white-space: pre-line;
 }
 
 /* ---------- Nutrition ---------- */

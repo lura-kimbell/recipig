@@ -67,6 +67,10 @@ const blank = (): Recipe => ({
             <input type="text" [(ngModel)]="draft.totalTime" />
           </label>
         </div>
+        <label class="field">
+          <span>Notes <span class="muted small">(optional)</span></span>
+          <textarea rows="3" placeholder="Tweaks you tried, or ideas for next time" [(ngModel)]="draft.notes"></textarea>
+        </label>
         <div class="field" role="group" aria-labelledby="tags-label">
           <span id="tags-label">Main ingredient</span>
           <div class="tag-list">
@@ -177,14 +181,6 @@ const blank = (): Recipe => ({
               <button type="button" class="btn small danger" (click)="removeStep(step.id)">Remove</button>
             </div>
             <textarea rows="3" [(ngModel)]="step.text" [attr.aria-label]="'Step ' + (i + 1)"></textarea>
-            <label class="field">
-              <span>Notes <span class="muted small">(optional)</span></span>
-              <textarea
-                rows="2"
-                placeholder="Tweaks you tried, or ideas for next time"
-                [(ngModel)]="step.notes"
-              ></textarea>
-            </label>
             @if (draft.ingredients.length > 0) {
               <details>
                 <summary>Ingredients shown with this step ({{ step.ingredientIds.length }})</summary>
@@ -347,7 +343,7 @@ export class RecipeEdit implements OnInit {
     }
   }
 
-  /** Trim text, drop blank items, empty sections and notes, and forget links to ingredients that were removed. */
+  /** Trim text, drop blank items and empty sections, and forget links to ingredients that were removed. */
   private cleaned(): Recipe {
     const ingredients = this.draft.ingredients
       .filter((i) => i.text.trim())
@@ -359,9 +355,15 @@ export class RecipeEdit implements OnInit {
         ...s,
         text: s.text.trim(),
         section: s.section?.trim() || undefined,
-        notes: s.notes?.trim() || undefined,
         ingredientIds: s.ingredientIds.filter((id) => known.has(id)),
       }));
-    return { ...this.draft, title: this.draft.title.trim(), image: this.draft.image?.trim() || undefined, ingredients, steps };
+    return {
+      ...this.draft,
+      title: this.draft.title.trim(),
+      image: this.draft.image?.trim() || undefined,
+      notes: this.draft.notes?.trim() || undefined,
+      ingredients,
+      steps,
+    };
   }
 }

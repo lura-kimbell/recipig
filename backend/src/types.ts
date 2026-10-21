@@ -17,8 +17,6 @@ export interface Step {
   ingredientIds: string[];
   /** Optional group label such as "Brine" or "For the sauce". */
   section?: string;
-  /** The cook's own notes on this step: tweaks they tried, ideas for next time. */
-  notes?: string;
 }
 
 export interface Recipe {
@@ -30,6 +28,8 @@ export interface Recipe {
   prepTime?: string;
   cookTime?: string;
   totalTime?: string;
+  /** The cook's own notes: tweaks they tried, ideas for next time. */
+  notes?: string;
   /** Main-ingredient tags such as "Chicken"; omitted when there are none. */
   tags?: RecipeTag[];
   ingredients: Ingredient[];
