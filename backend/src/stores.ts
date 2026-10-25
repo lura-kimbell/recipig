@@ -17,7 +17,7 @@ export interface User {
 }
 
 /** The app's looks. The first is the default. */
-export const THEMES = ['friendly', 'aurora', 'terminal', 'sanguine'] as const;
+export const THEMES = ['friendly', 'aurora', 'terminal'] as const;
 export type Theme = (typeof THEMES)[number];
 export const isTheme = (v: unknown): v is Theme => typeof v === 'string' && (THEMES as readonly string[]).includes(v);
 
@@ -31,7 +31,8 @@ export interface PublicUser {
 export const toPublicUser = (user: User): PublicUser => ({
   id: user.id,
   username: user.username,
-  theme: user.theme ?? THEMES[0],
+  // A theme that has since been removed falls back to the default.
+  theme: isTheme(user.theme) ? user.theme : THEMES[0],
 });
 
 /**

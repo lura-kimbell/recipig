@@ -4,6 +4,7 @@ import { parseLogin, parseRegistration } from '../src/credentials.ts';
 import { hashPassword, verifyPassword } from '../src/password.ts';
 import { AttemptLimiter } from '../src/rateLimit.ts';
 import { clearedSessionCookie, hashToken, newSessionToken, parseCookies, sessionCookie } from '../src/session.ts';
+import { toPublicUser } from '../src/stores.ts';
 import { ValidationError } from '../src/validate.ts';
 
 test('passwords are hashed, salted, and verified', async () => {
@@ -78,4 +79,11 @@ test('cookie parsing and cookie flags', () => {
   assert.doesNotMatch(set, /Secure/);
   assert.match(sessionCookie('tok', true), /; Secure$/);
   assert.match(clearedSessionCookie(false), /Max-Age=0/);
+});
+
+test('a saved theme that no longer exists falls back to the default', () => {
+  const user = { id: 'u1', username: 'a', passwordHash: 'h', createdAt: '' };
+  assert.equal(toPublicUser({ ...user, theme: 'terminal' }).theme, 'terminal');
+  assert.equal(toPublicUser({ ...user, theme: 'sanguine' as never }).theme, 'friendly');
+  assert.equal(toPublicUser(user).theme, 'friendly');
 });

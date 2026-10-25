@@ -51,6 +51,9 @@
 
   /* Page and header */
   --page-bg: radial-gradient(var(--dot) 2.5px, transparent 3px) 0 0 / 30px 30px, var(--meadow);
+  /* An optional backdrop that stays still behind the page (Aurora's night sky). It is
+     painted once on its own fixed layer, so scrolling doesn't repaint it. */
+  --backdrop: none;
   --header-bg: var(--blossom);
   --header-border: none;
   --header-blur: none;
@@ -183,17 +186,34 @@
   --primary-ink: #03231a;
   --focus: rgb(60 240 170 / 0.35);
 
-  /* Curtains of light near the top, scattered stars, deep night behind */
-  --page-bg:
-    radial-gradient(ellipse 70% 40% at 15% 0%, rgb(60 240 170 / 0.24), transparent 70%) fixed,
-    radial-gradient(ellipse 55% 45% at 80% 0%, rgb(167 139 250 / 0.24), transparent 70%) fixed,
-    radial-gradient(ellipse 45% 30% at 50% 6%, rgb(34 211 238 / 0.16), transparent 70%) fixed,
-    radial-gradient(1.4px 1.4px at 23px 41px, #fff 50%, transparent 52%) 0 0 / 137px 137px,
-    radial-gradient(1px 1px at 91px 12px, rgb(255 255 255 / 0.85) 50%, transparent 52%) 0 0 / 211px 211px,
-    radial-gradient(1.6px 1.6px at 150px 170px, rgb(200 220 255 / 0.9) 50%, transparent 52%) 0 0 / 263px 263px,
-    radial-gradient(1px 1px at 60px 70px, rgb(255 255 255 / 0.6) 50%, transparent 52%) 0 0 / 89px 89px,
-    linear-gradient(#060a1c, #0b1030 60%, #120e2e);
-  --header-bg: rgb(6 10 28 / 0.7);
+  /* A deep, clear night: a few bright stars with a soft glow, many fainter ones in white,
+     blue and warm tints, a faint Milky Way band and nebula, and dim curtains of aurora
+     along the top. Star layers tile at different odd sizes so the pattern doesn't
+     visibly repeat, and the whole sky stays put while the page scrolls (it is the --backdrop layer). */
+  --backdrop:
+    radial-gradient(circle at 120px 80px, #fff 0 1.1px, rgb(190 210 255 / 0.35) 1.6px, transparent 4.5px) 0 0 / 419px 419px,
+    radial-gradient(circle at 300px 260px, #fff6e0 0 1px, rgb(255 230 190 / 0.3) 1.5px, transparent 4px) 0 0 / 523px 523px,
+    radial-gradient(circle at 40px 330px, #fff 0 1px, rgb(180 200 255 / 0.3) 1.5px, transparent 4px) 0 0 / 389px 389px,
+    radial-gradient(circle at 23px 41px, #fff 0 0.9px, transparent 1.4px) 0 0 / 137px 137px,
+    radial-gradient(circle at 150px 170px, rgb(205 222 255) 0 0.9px, transparent 1.5px) 0 0 / 263px 263px,
+    radial-gradient(circle at 70px 200px, rgb(255 244 220 / 0.9) 0 0.8px, transparent 1.3px) 0 0 / 229px 229px,
+    radial-gradient(circle at 200px 30px, #fff 0 0.8px, transparent 1.3px) 0 0 / 311px 311px,
+    radial-gradient(circle at 91px 12px, rgb(255 255 255 / 0.8) 0 0.8px, transparent 1.6px) 0 0 / 211px 211px,
+    radial-gradient(circle at 60px 70px, rgb(255 255 255 / 0.6) 0 0.75px, transparent 1.5px) 0 0 / 89px 89px,
+    radial-gradient(circle at 17px 33px, rgb(220 230 255 / 0.55) 0 0.7px, transparent 1.5px) 0 0 / 61px 61px,
+    radial-gradient(circle at 44px 9px, rgb(255 255 255 / 0.45) 0 0.7px, transparent 1.5px) 0 0 / 47px 47px,
+    radial-gradient(circle at 5px 52px, rgb(255 255 255 / 0.5) 0 0.7px, transparent 1.5px) 0 0 / 73px 73px,
+    radial-gradient(circle at 101px 64px, rgb(200 215 255 / 0.55) 0 0.75px, transparent 1.5px) 0 0 / 113px 113px,
+    radial-gradient(circle at 33px 140px, rgb(255 255 255 / 0.5) 0 0.7px, transparent 1.5px) 0 0 / 157px 157px,
+    radial-gradient(circle at 130px 99px, rgb(255 240 225 / 0.5) 0 0.7px, transparent 1.5px) 0 0 / 181px 181px,
+    linear-gradient(118deg, transparent 28%, rgb(120 130 220 / 0.05) 40%, rgb(190 170 255 / 0.09) 48%, rgb(150 190 255 / 0.07) 54%, rgb(120 130 220 / 0.04) 62%, transparent 74%),
+    radial-gradient(ellipse 35% 20% at 70% 55%, rgb(150 100 230 / 0.07), transparent 70%),
+    radial-gradient(ellipse 70% 38% at 15% 0%, rgb(60 240 170 / 0.16), transparent 70%),
+    radial-gradient(ellipse 55% 42% at 82% 0%, rgb(167 139 250 / 0.15), transparent 70%),
+    radial-gradient(ellipse 40% 26% at 48% 4%, rgb(34 211 238 / 0.1), transparent 70%),
+    linear-gradient(#01030a, #040717 55%, #08061a);
+  --page-bg: #01030a;
+  --header-bg: rgb(2 4 12 / 0.72);
   --header-border: 1px solid rgb(125 255 200 / 0.18);
   --header-blur: blur(10px);
   --hem-display: none;
@@ -348,92 +368,6 @@
   --tile-bottom: 0%;
 }
 
-/* ---------- Sanguine: black, bone and blood, after Othercide ---------- */
-
-[data-theme='sanguine'] {
-  color-scheme: dark;
-
-  /* Carved Roman capitals for headings, and a medieval book-hand for text: calligraphic,
-     but upright and easy to read. */
-  --font-display: 'Cinzel', 'Trajan Pro', 'Times New Roman', serif;
-  --font-body: 'Almendra', 'Palatino Linotype', Palatino, 'Times New Roman', serif;
-  font-size: 106.25%;
-
-  --meadow: #0b0909;
-  --cloud: #110d0d;
-  --surface: #0f0b0b;
-  --field: #080606;
-  --outline: #e9e3d8;
-
-  --bark: #ece6dc;
-  --bark-soft: #a1978d;
-  --leaf: #d0021b;
-  --leaf-ink: #ff4a5c;
-  --danger-bg: #3a0a10;
-  --danger-ink: #ff8a95;
-
-  /* Near-black behind text; the colour comes from red lines and accents */
-  --peach: #1c1313;
-  --sky: #1c1313;
-  --butter: #1c1313;
-  --lilac: #1c1313;
-  --blossom: #1c1313;
-  --mint: #1c1313;
-  --chip: rgb(255 255 255 / 0.07);
-
-  --primary: #b0001a;
-  --primary-hover: #d0021b;
-  --primary-edge: #ff2a3f;
-  --primary-ink: #fff6f0;
-  --focus: rgb(208 2 27 / 0.45);
-
-  /* A wash of blood light from above and a darker pool in the corner */
-  --page-bg:
-    radial-gradient(ellipse 90% 55% at 50% -5%, rgb(176 0 26 / 0.32), transparent 70%) fixed,
-    radial-gradient(ellipse 60% 50% at 100% 100%, rgb(120 0 16 / 0.25), transparent 70%) fixed,
-    #0b0909;
-  --header-bg: #050404;
-  --header-border: 2px solid var(--leaf);
-  --hem-display: none;
-
-  /* Hairlines, sharp corners, and hard red shadows */
-  --border-w: 1px;
-  --border-w-control: 1px;
-  --border-w-hair: 1px;
-  --radius-card: 0;
-  --radius-menu: 0;
-  --radius-bubble: 0;
-  --radius-inner: 0;
-  --radius-field: 0;
-  --radius-item: 0;
-  --radius-pill: 0;
-  --radius-round: 0;
-  --shadow-card: 6px 6px 0 rgb(176 0 26 / 0.85);
-  --shadow-card-hover: 9px 9px 0 var(--leaf);
-  --shadow-control: 3px 3px 0 rgb(176 0 26 / 0.75);
-  --shadow-control-sm: 2px 2px 0 rgb(176 0 26 / 0.75);
-  --shadow-primary: 3px 3px 0 #ffffff;
-  --press: 2px;
-  /* Buttons turn bone white on hover */
-  --btn-hover-bg: #ece6dc;
-  --btn-hover-ink: #0b0909;
-  --card-hover-border: #ffffff;
-  --meta-border: #4a3434;
-  --check-mark: #fff6f0;
-  --section-bg: transparent;
-  --section-border: var(--leaf);
-
-  /* Cards bleed red (one bone white) from the top, fading to black */
-  --tile-1: #b0001a;
-  --tile-2: #e9e3d8;
-  --tile-3: #7a0012;
-  --tile-4: #d0021b;
-  --tile-5: #4a000b;
-  --tile-top: 45%;
-  --tile-mid: 8%;
-  --tile-bottom: 0%;
-}
-
 * {
   box-sizing: border-box;
 }
@@ -443,6 +377,14 @@ body {
   color: var(--bark);
   background: var(--page-bg);
   font: 1.0625rem/1.55 var(--font-body);
+}
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background: var(--backdrop);
 }
 
 a {
@@ -1448,7 +1390,7 @@ details summary {
 .theme-options {
   display: grid;
   gap: 0.9rem;
-  grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(11.5rem, 1fr));
   margin-top: 0.9rem;
 }
 .theme-option {
@@ -1482,7 +1424,7 @@ details summary {
   height: 8.5rem;
   color: var(--bark);
   font-family: var(--font-body);
-  background: var(--page-bg);
+  background: var(--backdrop), var(--page-bg);
   border: var(--border-w-hair) var(--line) var(--outline);
   border-radius: var(--radius-field);
 }
@@ -1581,22 +1523,6 @@ details summary {
 [data-theme='terminal'] .brand-name::after {
   content: '_';
   animation: cursor-blink 1.1s steps(1) infinite;
-}
-/* Sanguine: headings in spaced capitals, page titles underscored with a red slash. */
-[data-theme='sanguine'] h1,
-[data-theme='sanguine'] h2,
-[data-theme='sanguine'] h3 {
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-}
-[data-theme='sanguine'] .container h1::after {
-  content: '';
-  display: block;
-  width: 3.5rem;
-  height: 3px;
-  margin-top: 0.5rem;
-  background: var(--leaf);
-  transform: skewX(-35deg);
 }
 
 @keyframes cursor-blink {

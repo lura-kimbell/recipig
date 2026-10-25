@@ -23,9 +23,10 @@ const PLACEHOLDER_EMOJI = ['🍳', '🥕', '🍰', '🍓', '🥐', '🍲'];
         <p class="muted">Use <strong>New Recipe</strong> above to write one or import one from a link.</p>
       </div>
     } @else {
+      @if (filterTags().length > 0) {
       <div class="tag-filter" role="group" aria-labelledby="tag-filter-label">
         <span class="tag-filter-label" id="tag-filter-label">Show</span>
-        @for (tag of allTags; track tag) {
+        @for (tag of filterTags(); track tag) {
           <button
             type="button"
             class="tag-pill"
@@ -41,6 +42,7 @@ const PLACEHOLDER_EMOJI = ['🍳', '🥕', '🍰', '🍓', '🥐', '🍲'];
           <button type="button" class="link-btn" (click)="clearTags()">Show all</button>
         }
       </div>
+      }
 
       @if (filtered().length === 0) {
         <p class="muted">No recipes with {{ selected().length === 1 ? 'that tag' : 'those tags' }} yet.</p>
@@ -84,7 +86,6 @@ export class RecipeList implements OnInit {
   readonly loading = signal(true);
   readonly error = signal('');
 
-  readonly allTags = RECIPE_TAGS;
   /** Tags picked in the filter; kept in the URL (?tag=Chicken&tag=Fish) so Back returns to the same view. */
   readonly selected = signal<RecipeTag[]>([]);
 
@@ -100,6 +101,9 @@ export class RecipeList implements OnInit {
     for (const r of this.recipes()) for (const t of r.tags ?? []) counts[t]++;
     return counts;
   });
+
+  /** Only tags some recipe has (plus any picked, so they can be unpicked); no "Pork 0". */
+  readonly filterTags = computed(() => RECIPE_TAGS.filter((t) => this.tagCounts()[t] > 0 || this.isSelected(t)));
 
   /** Recipes without a photo get a friendly emoji instead, varied by position. */
   emoji(index: number): string {
