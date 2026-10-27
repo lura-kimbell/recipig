@@ -7,7 +7,8 @@
     "start": "tsx src/index.ts",
     "test": "node --import tsx --test test/*.test.ts",
     "typecheck": "tsc --noEmit",
-    "import-json": "tsx scripts/importJson.ts"
+    "import-json": "tsx scripts/importJson.ts",
+    "refresh-images": "tsx scripts/refreshImages.ts"
   },
   "dependencies": {
     "cheerio": "^1.0.0",

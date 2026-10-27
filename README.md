@@ -86,6 +86,17 @@ npm run import-json -- yourusername            # or add a path to a recipes.json
 
 Running it twice is safe: recipes already imported are skipped.
 
+### Sharper photos for older recipes
+
+Imports now take the largest version of a recipe's photo. To upgrade recipes imported before that, run (add `--dry-run` first to see what would change):
+
+```bash
+cd backend
+npm run refresh-images
+```
+
+It reads each recipe's source page again and only replaces a photo that came from that page; a photo you set yourself is left alone. Set `MONGODB_URI` to run it against the hosted database.
+
 ## Tests
 
 ```bash

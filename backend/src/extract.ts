@@ -26,7 +26,8 @@ interface RawRecipe {
   prepTime?: string;
   cookTime?: string;
   totalTime?: string;
-  image?: string;
+  /** The recipe's own image value, as published (a URL, an ImageObject, or a list of them). */
+  images?: unknown;
 }
 
 type Obj = Record<string, unknown>;
@@ -111,16 +112,83 @@ function formatYield(v: unknown): string | undefined {
   return items.find((s) => /[a-z]/i.test(s)) ?? `${items[0]} servings`;
 }
 
-function firstImage(v: unknown, base?: string): string | undefined {
-  const first = toArray(v)[0];
-  const raw = typeof first === 'string' ? first : isObj(first) ? (first.url ?? first.contentUrl) : undefined;
-  if (typeof raw !== 'string') return undefined;
-  try {
-    const u = new URL(raw, base);
-    return u.protocol === 'http:' || u.protocol === 'https:' ? u.toString() : undefined;
-  } catch {
-    return undefined;
-  }
+interface ImageCandidate {
+  url: string;
+  width?: number;
+  height?: number;
+  /** A size taken from a "-500x375" file name suffix rather than stated by the page. */
+  sizedByName: boolean;
+}
+
+/** The WordPress-style size suffix: "dish-500x375.jpg" is a 500 x 375 crop of "dish.jpg". */
+const SIZE_SUFFIX = /-(\d{2,5})x(\d{2,5})(\.[a-z0-9]+)$/i;
+
+const positiveNumber = (v: unknown): number | undefined => {
+  const n = Number(isObj(v) ? v['@value'] ?? v.value : v);
+  return Number.isFinite(n) && n > 0 ? n : undefined;
+};
+
+/** Every image in a published image value, made absolute, with whatever size is known. */
+function imageCandidates(v: unknown, base?: string): ImageCandidate[] {
+  return toArray(v).flatMap((item): ImageCandidate[] => {
+    const raw = typeof item === 'string' ? item : isObj(item) ? (item.url ?? item.contentUrl) : undefined;
+    if (typeof raw !== 'string') return [];
+    let url: URL;
+    try {
+      url = new URL(raw, base);
+    } catch {
+      return [];
+    }
+    if (url.protocol !== 'http:' && url.protocol !== 'https:') return [];
+    const width = isObj(item) ? positiveNumber(item.width) : undefined;
+    const height = isObj(item) ? positiveNumber(item.height) : undefined;
+    if (width && height) return [{ url: url.toString(), width, height, sizedByName: false }];
+    const m = SIZE_SUFFIX.exec(url.pathname);
+    return [{ url: url.toString(), width: m ? Number(m[1]) : undefined, height: m ? Number(m[2]) : undefined, sizedByName: !!m }];
+  });
+}
+
+/** Which photo a URL shows, ignoring its size: "dish-225x225.jpg" and "dish.jpg" are the same photo. */
+function photoKey(url: string): string {
+  const u = new URL(url);
+  return u.host + u.pathname.replace(SIZE_SUFFIX, '$3');
+}
+
+/** Below this width a photo looks soft across the recipe page, so the full-size original is worth more. */
+const SHARP_WIDTH = 1000;
+
+/**
+ * The recipe's main photo, at the best size on offer.
+ *
+ * Sites list their recipe photo in several sizes and crops, smallest first more often than
+ * not, and taking the first one gave 225px thumbnails that blur on the recipe page. Only the
+ * recipe's own image value is looked at: schema.org and Google reserve it for the finished
+ * dish, while step photos sit on the steps and are never considered. Within it, a candidate
+ * must be a version of the first (listed) photo: the same file at another size, or any image
+ * whose width and height the page states (how sites publish crops of the main photo). The
+ * page's share image is used only when it is the same file. Among versions wide enough to
+ * look sharp, the largest landscape crop wins (cards and the recipe page are wide), or the
+ * largest if none is landscape; otherwise the full-size original if listed, else the largest.
+ */
+function pickImage(v: unknown, base?: string, sameFileOnly: unknown = undefined): string | undefined {
+  const listed = imageCandidates(v, base);
+  const first = listed[0];
+  if (!first) return undefined;
+  const key = photoKey(first.url);
+  const stated = (c: ImageCandidate) => c.width !== undefined && !c.sizedByName;
+  const versions = [
+    ...listed.filter((c) => photoKey(c.url) === key || (stated(c) && stated(first))),
+    ...imageCandidates(sameFileOnly, base).filter((c) => photoKey(c.url) === key),
+  ];
+  const sized = versions.filter((c) => c.width !== undefined && c.height !== undefined);
+  const area = (c: ImageCandidate) => c.width! * c.height!;
+  const sharp = sized.filter((c) => c.width! >= SHARP_WIDTH);
+  const landscape = sharp.filter((c) => c.width! / c.height! >= 1.3);
+  const pool = landscape.length > 0 ? landscape : sharp;
+  if (pool.length > 0) return pool.reduce((best, c) => (area(c) > area(best) ? c : best)).url;
+  const largest = sized.reduce<ImageCandidate | undefined>((best, c) => (!best || area(c) > area(best) ? c : best), undefined);
+  const original = versions.find((c) => c.width === undefined && photoKey(c.url) === key);
+  return original?.url ?? largest?.url ?? first.url;
 }
 
 // ---------------------------------------------------------------------------
@@ -166,7 +234,7 @@ function findRecipeNode(value: unknown, depth = 0): Obj | null {
   return null;
 }
 
-function fromJsonLd($: cheerio.CheerioAPI, base?: string): RawRecipe | null {
+function fromJsonLd($: cheerio.CheerioAPI): RawRecipe | null {
   let firstFound: RawRecipe | null = null;
   for (const el of $('script[type="application/ld+json"]').toArray()) {
     const node = findRecipeNode(parseJson($(el).text()));
@@ -179,7 +247,7 @@ function fromJsonLd($: cheerio.CheerioAPI, base?: string): RawRecipe | null {
       prepTime: formatDuration(node.prepTime),
       cookTime: formatDuration(node.cookTime),
       totalTime: formatDuration(node.totalTime),
-      image: firstImage(node.image, base),
+      images: node.image,
     };
     // Some sites publish a stub (title and image, but no ingredients or steps).
     // Keep looking for a complete one, and fall back to the stub for its details.
@@ -190,7 +258,7 @@ function fromJsonLd($: cheerio.CheerioAPI, base?: string): RawRecipe | null {
 }
 
 /** Older sites mark recipes up with schema.org microdata instead of JSON-LD. */
-function fromMicrodata($: cheerio.CheerioAPI, base?: string): RawRecipe | null {
+function fromMicrodata($: cheerio.CheerioAPI): RawRecipe | null {
   const root = $('[itemtype*="schema.org/Recipe"]').first();
   if (root.length === 0) return null;
 
@@ -219,7 +287,7 @@ function fromMicrodata($: cheerio.CheerioAPI, base?: string): RawRecipe | null {
     prepTime: formatDuration(content('prepTime')),
     cookTime: formatDuration(content('cookTime')),
     totalTime: formatDuration(content('totalTime')),
-    image: firstImage(prop('image').first().attr('src') ?? prop('image').first().attr('content'), base),
+    images: prop('image').first().attr('src') ?? prop('image').first().attr('content'),
   };
 }
 
@@ -340,12 +408,46 @@ function pageTitle($: cheerio.CheerioAPI): string {
  * "Ingredients" and "Directions" headings instead. Whatever details the
  * structured data does have (title, image, times) are still used.
  */
+/** The page's structured recipe: a complete one if there is one, else any stub. */
+function findStructured($: cheerio.CheerioAPI): RawRecipe | null {
+  // A stub in one format (say JSON-LD with no ingredients) shouldn't hide a complete recipe in another.
+  const found = [fromJsonLd($), fromMicrodata($)];
+  return found.find((r) => r && r.ingredients.length > 0 && r.steps.length > 0) ?? found.find((r) => r) ?? null;
+}
+
+/** The best version of the recipe's photo on a page (see pickImage). */
+function bestImage($: cheerio.CheerioAPI, structured: RawRecipe | null, sourceUrl?: string): string | undefined {
+  const og = $('meta[property="og:image"]').attr('content');
+  return pickImage(structured?.images, sourceUrl, og) ?? pickImage(og, sourceUrl);
+}
+
+/**
+ * For refreshing a saved recipe's photo: the best version of the recipe photo on its page,
+ * and whether a saved image URL is that same photo or another image the page offers for the
+ * recipe. Anything else is a photo the cook chose themselves and should be left alone.
+ */
+export function recipePhoto(html: string, sourceUrl?: string): { best?: string; offers(url: string): boolean } {
+  const $ = cheerio.load(html);
+  const structured = findStructured($);
+  const best = bestImage($, structured, sourceUrl);
+  const offered = [
+    ...imageCandidates(structured?.images, sourceUrl),
+    ...imageCandidates($('meta[property="og:image"]').attr('content'), sourceUrl),
+  ].map((c) => c.url);
+  const offers = (url: string): boolean => {
+    try {
+      const absolute = new URL(url, sourceUrl).toString();
+      return offered.includes(absolute) || (best !== undefined && photoKey(absolute) === photoKey(best));
+    } catch {
+      return false;
+    }
+  };
+  return { best, offers };
+}
+
 export function extractRecipe(html: string, sourceUrl?: string): RecipeDraft {
   const $ = cheerio.load(html);
-  // A stub in one format (say JSON-LD with no ingredients) shouldn't hide a complete recipe in another.
-  const found = [fromJsonLd($, sourceUrl), fromMicrodata($, sourceUrl)];
-  const structured =
-    found.find((r) => r && r.ingredients.length > 0 && r.steps.length > 0) ?? found.find((r) => r) ?? null;
+  const structured = findStructured($);
 
   const ingredientItems = structured?.ingredients.length
     ? structured.ingredients
@@ -374,7 +476,7 @@ export function extractRecipe(html: string, sourceUrl?: string): RecipeDraft {
   return {
     title,
     sourceUrl,
-    image: structured?.image ?? firstImage($('meta[property="og:image"]').attr('content'), sourceUrl),
+    image: bestImage($, structured, sourceUrl),
     servings: structured?.servings,
     prepTime: structured?.prepTime,
     cookTime: structured?.cookTime,
