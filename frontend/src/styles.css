@@ -242,15 +242,9 @@
   --press: 1px;
   --btn-hover-bg: rgb(255 255 255 / 0.12);
   --check-mark: #03231a;
-  /* Card tag icons stay small pill badges */
-  --icon-badge-border: var(--outline);
-  /* 'initial' unsets it, so each badge uses its own tag colour (see .tag-pill.icon-only) */
-  --icon-badge-bg: initial;
-  --icon-badge-ink: var(--tag-ink);
-  --icon-badge-opacity: 1;
-  --icon-badge-size: 2rem;
-  --icon-badge-icon: 1.15em;
-  --icon-badge-shadow: none;
+  /* Card tag icons are the same white watermark as Friendly, with a faint aurora glow
+     instead of a shadow (a shadow doesn't show on the night sky) */
+  --icon-badge-shadow: drop-shadow(0 0 4px rgb(125 255 200 / 0.35));
 
   /* Bright aurora colours, fading from full strength to almost nothing down the card */
   --tile-1: #3cf0aa;
