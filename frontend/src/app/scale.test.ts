@@ -203,3 +203,24 @@ test('a bad factor changes nothing', () => {
     assert.equal(scaleIngredientText('2 eggs', factor), '2 eggs');
   }
 });
+
+test('halving: whole numbers become fractions, and words go back to singular', () => {
+  check([
+    ['2 large eggs', 0.5, '1 large egg'],
+    ['1 egg', 0.5, '1/2 egg'],
+    ['3 eggs', 0.5, '1 1/2 eggs'],
+    ['2 cups flour', 0.5, '1 cup flour'],
+    ['1 1/2 cups flour', 0.5, '3/4 cup flour'],
+    ['1 cup milk', 0.5, '1/2 cup milk'],
+    ['3/4 cup sugar', 0.5, '3/8 cup sugar'],
+    ['1/8 tsp nutmeg', 0.5, '1/16 tsp nutmeg'],
+    ['2 cloves garlic', 0.5, '1 clove garlic'],
+    ['2 tomatoes', 0.5, '1 tomato'],
+    ['2 bay leaves', 0.5, '1 bay leaf'],
+    ['2 boxes pasta', 0.5, '1 box pasta'],
+    ['1 (14 oz) can tomatoes', 0.5, '1/2 (14 oz) can tomatoes'],
+    ['2-3 carrots', 0.5, '1-1 1/2 carrots'],
+    ['1.5 cups rice', 0.5, '0.75 cup rice'],
+    ['2 tbsp butter', 0.5, '1 tbsp butter'],
+  ]);
+});

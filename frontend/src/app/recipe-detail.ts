@@ -72,9 +72,10 @@ import { scaleIngredientText } from './scale';
             </button>
           }
         </div>
-        @if (multiplier() > 1) {
+        @if (multiplier() !== 1) {
           <span class="muted small">
-            Ingredient amounts are multiplied by {{ multiplier() }}. Amounts written inside step text aren't changed.
+            Ingredient amounts are {{ multiplier() < 1 ? 'halved' : 'multiplied by ' + multiplier() }}. Amounts written
+            inside step text aren't changed.
           </span>
         }
       </div>
@@ -169,7 +170,7 @@ import { scaleIngredientText } from './scale';
                 @if (perServing(); as serving) {
                   <th scope="col">Per serving</th>
                 }
-                <th scope="col">{{ multiplier() > 1 ? 'Whole batch (' + multiplier() + 'x)' : 'Whole recipe' }}</th>
+                <th scope="col">{{ multiplier() !== 1 ? 'Whole batch (' + multiplier() + 'x)' : 'Whole recipe' }}</th>
               </tr>
             </thead>
             <tbody>
@@ -213,7 +214,7 @@ export class RecipeDetail implements OnInit {
   readonly host = hostOf;
 
   /** Batch sizes offered; the recipe as written is 1x. */
-  readonly multipliers = [1, 2, 3, 4] as const;
+  readonly multipliers = [0.5, 1, 2, 3, 4] as const;
   readonly multiplier = signal<number>(1);
 
   /** Ingredient lines with their amounts multiplied. Only for display: the saved recipe is never changed. */

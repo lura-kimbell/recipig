@@ -7,7 +7,8 @@
  * glyphs ("½", "1½"), ranges ("2-3", "1/2 to 1") and amounts inside brackets
  * ("(130g)"). Fractions come back as fractions in the same style they went in.
  * Words that name the amount get fixed up too ("1 cup" -> "2 cups", "1 egg" ->
- * "2 eggs").
+ * "2 eggs", and back again when halving: "2 cups" -> "1 cup"). Halving a whole
+ * number gives a fraction ("1 egg" -> "1/2 egg").
  *
  * Numbers that aren't amounts are left alone: "2% milk", "80/20 beef", "350°F",
  * "a 2-inch piece", and the size in "1 (14 oz) can".
@@ -37,6 +38,7 @@ const GLYPH_CLASS = '½⅓⅔¼¾⅕⅖⅗⅘⅙⅚⅛⅜⅝⅞';
 
 /** The fractions a scaled amount is snapped to: value, numerator, denominator, glyph. */
 const FRACTIONS: [number, number, number, string][] = [
+  [1 / 16, 1, 16, '1/16'],
   [1 / 8, 1, 8, '⅛'],
   [1 / 6, 1, 6, '⅙'],
   [1 / 4, 1, 4, '¼'],
@@ -91,6 +93,8 @@ const round2 = (n: number): string => String(Math.round(n * 100) / 100);
 function format(value: number, q: Qty): string {
   if (q.style === 'int' || q.style === 'decimal') {
     if (Number.isInteger(value)) return q.comma ? value.toLocaleString('en-US') : String(value);
+    // A whole number halved reads best as a fraction: "1 egg" -> "1/2 egg", "3" -> "1 1/2".
+    if (q.style === 'int') return format(value, { value, style: 'ascii' });
     return round2(value);
   }
   const whole = Math.floor(value + 1e-9);
@@ -179,6 +183,12 @@ const SIZE_WORDS = new Set([
 ]);
 
 const IRREGULAR_PLURALS: Record<string, string> = { leaf: 'leaves', loaf: 'loaves', half: 'halves', knife: 'knives' };
+const IRREGULAR_SINGULARS: Record<string, string> = Object.fromEntries(
+  Object.entries(IRREGULAR_PLURALS).map(([one, many]) => [many, one]),
+);
+const UNIT_SINGULARS: Record<string, string> = Object.fromEntries(
+  Object.entries(UNIT_PLURALS).map(([one, many]) => [many, one]),
+);
 
 /** Nouns that stay as they are even when there are several. */
 const NO_PLURAL = new Set(
@@ -206,18 +216,31 @@ function pluralizeNoun(word: string): string {
   return `${word}s`;
 }
 
+/** Singular of a plural noun, or the word itself if it isn't one we can safely change. */
+function singularizeNoun(word: string): string {
+  const lower = word.toLowerCase();
+  if (lower.length < 3 || NO_PLURAL.has(lower) || !lower.endsWith('s') || lower.endsWith('ss')) return word;
+  const irregular = IRREGULAR_SINGULARS[lower];
+  if (irregular) return matchCase(word, irregular);
+  if (/[^aeiou]ies$/.test(lower)) return `${word.slice(0, -3)}y`;
+  if (/(?:oes|xes|zes|ches|shes|sses)$/.test(lower)) return word.slice(0, -2);
+  return word.slice(0, -1);
+}
+
 const WORD = /^[\p{L}][\p{L}'’-]*/u;
 
 /**
- * Find the word that should become plural after an amount that is now more than
- * one: the unit if there is one ("cup", "can", "large handful"), otherwise the
- * thing being counted ("egg", "chicken breast", "lemon" in "juice of 1 lemon").
- * Returns the word's range and its new form, or null if nothing needs changing.
+ * Find the word that should change number after an amount crosses one: the unit
+ * if there is one ("cup", "can", "large handful"), otherwise the thing being
+ * counted ("egg", "chicken breast", "lemon" in "juice of 1 lemon"). It becomes
+ * plural when the amount is now more than one, singular when it is now one or
+ * less. Returns the word's range and its new form, or null if nothing needs changing.
  */
-function pluralTarget(
+function numberTarget(
   text: string,
   from: number,
   countsNoun: boolean,
+  toPlural: boolean,
 ): { start: number; end: number; word: string } | null {
   let i = from;
   const skipSpace = () => {
@@ -242,8 +265,10 @@ function pluralTarget(
 
   const lowered = m[0].toLowerCase();
   if (FIXED_UNITS.has(lowered)) return null;
-  const unit = UNIT_PLURALS[lowered];
+  const unit = toPlural ? UNIT_PLURALS[lowered] : UNIT_SINGULARS[lowered];
   if (unit) return { start: i, end: i + m[0].length, word: matchCase(m[0], unit) };
+  // Already in the right form ("1 cup" halved stays "cup").
+  if ((toPlural ? UNIT_SINGULARS : UNIT_PLURALS)[lowered]) return null;
   if (!countsNoun) return null;
 
   // No unit, so the amount counts the thing itself: take the last real word before a comma,
@@ -255,10 +280,10 @@ function pluralTarget(
   for (let k = words.length - 1; k >= 0; k--) {
     const w = words[k][0];
     if (/(?:ed|ly|ing)$/i.test(w) && words.length > 1 && k > 0) continue; // "finely", "chopped"
-    const plural = pluralizeNoun(w);
-    if (plural === w) return null;
+    const changed = toPlural ? pluralizeNoun(w) : singularizeNoun(w);
+    if (changed === w) return null;
     const start = i + (words[k].index ?? 0);
-    return { start, end: start + w.length, word: matchCase(w, plural) };
+    return { start, end: start + w.length, word: matchCase(w, changed) };
   }
   return null;
 }
@@ -334,11 +359,13 @@ export function scaleIngredientText(text: string, factor: number): string {
     out += text.slice(pos, start) + piece;
     pos = end;
 
-    // Was one (or less), now several: "cup" -> "cups", "egg" -> "eggs".
-    if (largest <= 1 && largest * factor > 1) {
+    // Was one (or less), now several: "cup" -> "cups", "egg" -> "eggs"; and the other way when halving.
+    const nowPlural = largest <= 1 && largest * factor > 1;
+    const nowSingular = largest > 1 && largest * factor <= 1;
+    if (nowPlural || nowSingular) {
       const before = text.slice(0, start).trim();
       const countsNoun = before === '' || /\b(?:juice|zest|peel|rind) of$/i.test(before);
-      const target = pluralTarget(text, end, countsNoun);
+      const target = numberTarget(text, end, countsNoun, nowPlural);
       if (target) {
         out += text.slice(pos, target.start) + target.word;
         pos = target.end;
