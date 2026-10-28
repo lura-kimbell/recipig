@@ -12,3 +12,4 @@ colour comes from the text colour and the fill in these files doesn't matter.
 | fish.svg       | fish-line     |
 | vegetarian.svg | carrot-line   |
 | user.svg       | user-3-line (the account menu button on phones) |
+| search.svg     | search-line (the recipe search box) |
