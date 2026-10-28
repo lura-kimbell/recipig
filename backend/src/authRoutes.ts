@@ -19,8 +19,8 @@ import { ValidationError } from './validate.ts';
 
 export class AuthError extends Error {}
 export class RateLimitError extends Error {
-  constructor() {
-    super('Too many attempts. Please wait a while and try again.');
+  constructor(message = 'Too many attempts. Please wait a while and try again.') {
+    super(message);
   }
 }
 

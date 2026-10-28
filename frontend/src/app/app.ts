@@ -2,6 +2,7 @@ import { Component, ElementRef, effect, inject, signal, viewChild } from '@angul
 import { Router, RouterLink, RouterOutlet } from '@angular/router';
 import { AuthService } from './auth.service';
 import { ImportDialog } from './import-dialog';
+import { PhotoImportDialog } from './photo-import-dialog';
 import { ThemePicker } from './theme-picker';
 import { ThemeService, isThemeId } from './theme.service';
 
@@ -9,7 +10,7 @@ type MenuName = 'new' | 'user';
 
 @Component({
   selector: 'app-root',
-  imports: [RouterOutlet, RouterLink, ThemePicker, ImportDialog],
+  imports: [RouterOutlet, RouterLink, ThemePicker, ImportDialog, PhotoImportDialog],
   host: {
     '(document:click)': 'onDocumentClick($event)',
     '(document:keydown.escape)': 'closeMenu(true)',
@@ -38,6 +39,7 @@ type MenuName = 'new' | 'user';
                 <ul id="new-recipe-menu" class="menu">
                   <li><a routerLink="/recipes/new" (click)="closeMenu()">From Scratch</a></li>
                   <li><button type="button" (click)="openImport()">From URL</button></li>
+                  <li><button type="button" (click)="openPhotoImport()">From Photos</button></li>
                 </ul>
               }
             </div>
@@ -76,6 +78,7 @@ type MenuName = 'new' | 'user';
     </main>
     <app-theme-picker />
     <app-import-dialog />
+    <app-photo-import-dialog />
   `,
 })
 export class App {
@@ -87,6 +90,7 @@ export class App {
   private readonly userToggle = viewChild<ElementRef<HTMLButtonElement>>('userToggle');
   private readonly themePicker = viewChild.required(ThemePicker);
   private readonly importDialog = viewChild.required(ImportDialog);
+  private readonly photoImportDialog = viewChild.required(PhotoImportDialog);
 
   readonly openMenu = signal<MenuName | null>(null);
 
@@ -114,6 +118,11 @@ export class App {
   openImport(): void {
     this.closeMenu();
     this.importDialog().open();
+  }
+
+  openPhotoImport(): void {
+    this.closeMenu();
+    this.photoImportDialog().open();
   }
 
   openThemePicker(): void {

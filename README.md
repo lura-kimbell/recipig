@@ -7,6 +7,7 @@ A personal recipe app. Paste a link to a recipe and Recipig saves just the recip
 - **Accounts.** Create an account with just a username and password (no email), log in and log out. On a hosted site, sign-up can require an invite code (see `SIGNUP_CODE`). Usernames are unique (Alice and alice are the same). Every recipe you import, create or edit belongs to your account, and nobody else can see it. There is no password reset, so pick one you'll remember.
 - **New Recipe menu.** The button in the header offers **From Scratch** (the edit form, empty) and **From URL** (a dialog where you paste a recipe link).
 - **Import from a URL.** Reads the recipe data that sites publish for search engines (schema.org JSON-LD, then microdata). If a page has none, or only a stub, it reads the lists under the page's "Ingredients" and "Directions" headings instead. You get the title, times, ingredients and steps only.
+- **Import from photos.** New Recipe → From Photos: take or choose photos of a recipe in a cookbook (one per page if it runs over several, up to 6), put them in page order, and Claude reads them into the editor, with the same tag guessing and step links as a URL import. Check the result against the book, then save. Photos are shrunk in the browser before upload and aren't kept. Needs `ANTHROPIC_API_KEY`; each import is one paid Claude API call, and each account can do 30 a day.
 - **Saved recipes.** Imported recipes are stored and listed so you can come back to them.
 - **Sections.** Ingredients and steps can be grouped under labels such as "Brine" or "Sauce". Imports keep the page's labels; in the editor, type a label in an item's Section box (items with the same label are grouped).
 - **Edit.** Change the title, image, times, ingredients, steps and sections; add, remove and reorder ingredients and steps. The image is a link to a picture (paste any image address; clear the box to remove it), for imported and hand-made recipes alike. In each step's "Ingredients shown with this step" list, an ingredient's section appears as a small tag beside its name.
@@ -60,6 +61,7 @@ Settings (environment variables for the backend):
 | `COOKIE_SECURE` | off | Set to `true` when the site is served over https, so the login cookie is only sent securely |
 | `TRUST_PROXY` | off | Set (for example to `1`) when behind a reverse proxy, so login rate limiting sees real client addresses |
 | `SIGNUP_CODE` | none | When set, creating an account needs this invite code (the sign-up form asks for it). Leave unset to let anyone sign up |
+| `ANTHROPIC_API_KEY` | none | Claude API key for importing from photos (create one at https://platform.claude.com). Without it, From Photos says it isn't set up |
 
 Collections: `users`, `sessions` and `recipes`; the indexes are created on startup.
 
@@ -72,6 +74,7 @@ Collections: `users`, `sessions` and `recipes`; the indexes are created on start
 3. **Render.** At https://dashboard.render.com choose *New → Blueprint*, connect your GitHub account, and pick the repository. Render reads `render.yaml` and asks for two values:
    - `MONGODB_URI`: the Atlas connection string from step 1.
    - `SIGNUP_CODE`: an invite code of your choosing. Only people you give it to can create an account.
+   - `ANTHROPIC_API_KEY`: a Claude API key, for importing from photos. Optional; leave it blank to turn that off. On a service created before this was added, set it under the service's *Environment* tab instead.
 4. **Use it.** When the first deploy finishes, open the `https://….onrender.com` address Render shows, create your account with the invite code, and log in from any device.
 
 Every push to the repository's default branch deploys again. On the free plan the app goes to sleep after a while without visitors, so the first visit after a quiet spell takes up to a minute to load. To move recipes from your local database, export and import them with MongoDB's `mongodump`/`mongorestore` tools, or re-import them from their links.
@@ -116,6 +119,7 @@ cd backend && TEST_MONGODB_URI=mongodb://127.0.0.1:27017 npm test
 ```
 backend/    Express + TypeScript API
   src/extract.ts    pull the recipe out of a page's HTML
+  src/photoImport.ts  read a recipe from cookbook photos with Claude
   src/link.ts       match step text to ingredients
   src/fetchPage.ts  download a page (refuses private/local addresses)
   src/stores.ts     storage interfaces (users, sessions, recipes)
@@ -136,5 +140,6 @@ render.yaml  Render Blueprint for hosting
 - Pages that need JavaScript to show the recipe, or that block automated requests, may not import.
 - Batch size only multiplies ingredient lines (and servings). Amounts written inside the step text ("add 1 cup of water") are left as written, and odd phrasing can slip through, so glance at the scaled list before you shop.
 - Nutrition is an estimate from a table of about 200 common foods with typical values; brands, cooking losses and unusual ingredients aren't accounted for.
+- Reading photos can misread small print or faded pages, so compare the draft with the book before saving. A recipe that continues on a page you didn't photograph will be incomplete.
 - Tags are guessed from words in the title and ingredients, so check them after importing.
 - Ingredient-to-step matching is keyword based. It's good, not perfect, so use the editor to fix a link. When two ingredients share a name (salt in both the brine and the seasoning), the step's section decides which one it shows.

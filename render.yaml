@@ -25,3 +25,6 @@ services:
         sync: false
       - key: SIGNUP_CODE
         sync: false
+      # Claude API key for New Recipe -> From Photos (optional: without it that import is off).
+      - key: ANTHROPIC_API_KEY
+        sync: false

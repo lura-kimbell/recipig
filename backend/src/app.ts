@@ -8,6 +8,9 @@ import type { FetchedPage } from './fetchPage.ts';
 import { AuthError, createAuth, currentUser, RateLimitError } from './authRoutes.ts';
 import { UsernameTakenError } from './stores.ts';
 import type { Stores } from './stores.ts';
+import { AttemptLimiter } from './rateLimit.ts';
+import { claudePhotoReader, draftFromReading, PhotoReadError } from './photoImport.ts';
+import type { PhotoReader, RecipePhoto } from './photoImport.ts';
 import { parseRecipeInput, ValidationError } from './validate.ts';
 
 export interface AppOptions {
@@ -21,17 +24,44 @@ export interface AppOptions {
   trustProxy?: string | number | boolean;
   /** Invite code required to create an account (see AuthOptions). */
   signupCode?: string;
+  /**
+   * Reads a recipe from photos of a cookbook (Claude, when ANTHROPIC_API_KEY is set).
+   * null turns photo import off; tests pass a fake.
+   */
+  readPhotos?: PhotoReader | null;
   /** Swappable clock for tests. */
   now?: () => number;
 }
 
+/** Photos per recipe, and photo imports per person per day (each one is a paid API call). */
+const MAX_PHOTOS = 6;
+const PHOTO_IMPORTS_PER_DAY = 30;
+const PHOTO_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
+
+function parsePhotos(body: unknown): RecipePhoto[] {
+  const photos = (body as { photos?: unknown } | undefined)?.photos;
+  if (!Array.isArray(photos) || photos.length === 0) throw new ValidationError('Please add at least one photo.');
+  if (photos.length > MAX_PHOTOS) throw new ValidationError(`Up to ${MAX_PHOTOS} photos per recipe, please.`);
+  return photos.map((p: { mediaType?: unknown; data?: unknown }) => {
+    if (typeof p?.mediaType !== 'string' || !PHOTO_TYPES.has(p.mediaType) || typeof p.data !== 'string' || !p.data) {
+      throw new ValidationError('Photos must be JPEG, PNG or WebP images.');
+    }
+    return { mediaType: p.mediaType as RecipePhoto['mediaType'], data: p.data };
+  });
+}
+
 export function createApp(stores: Stores, options: AppOptions = {}) {
   const getPage = options.fetchPage ?? fetchPage;
+  const readPhotos = options.readPhotos === undefined ? claudePhotoReader() : options.readPhotos;
+  const photoLimiter = new AttemptLimiter(PHOTO_IMPORTS_PER_DAY, 24 * 60 * 60 * 1000, options.now);
   const { recipes: store } = stores;
   const auth = createAuth(stores, { secureCookie: options.secureCookie, signupCode: options.signupCode, now: options.now });
   const app = express();
   if (options.trustProxy !== undefined) app.set('trust proxy', options.trustProxy);
-  app.use(express.json({ limit: '1mb' }));
+  // Photos get a bigger allowance, but only once the user is known (see the photo import route).
+  const json = express.json({ limit: '1mb' });
+  const photoJson = express.json({ limit: '15mb' });
+  app.use((req, res, next) => (req.path === '/api/recipes/import-photos' ? next() : json(req, res, next)));
 
   // API answers belong to one logged-in person, so browsers and proxies shouldn't keep copies.
   app.use('/api', (_req, res, next) => {
@@ -68,6 +98,19 @@ export function createApp(stores: Stores, options: AppOptions = {}) {
     const { html, finalUrl } = await getPage(url.trim());
     const draft = extractRecipe(html, finalUrl);
     res.status(201).json(await store.create(currentUser(res).id, draft));
+  });
+
+  // Photos of a cookbook recipe, read by Claude. Returns an unsaved draft for the editor;
+  // the photos themselves are not kept.
+  app.post('/api/recipes/import-photos', photoJson, async (req, res) => {
+    if (!readPhotos) throw new PhotoReadError("Importing from photos isn't set up on this server.", 503);
+    const photos = parsePhotos(req.body);
+    const userId = currentUser(res).id;
+    if (photoLimiter.isBlocked(userId)) {
+      throw new RateLimitError(`That's ${PHOTO_IMPORTS_PER_DAY} photo imports today. Please try again tomorrow.`);
+    }
+    photoLimiter.record(userId);
+    res.json(draftFromReading(await readPhotos(photos)));
   });
 
   app.get('/api/recipes/:id', async (req, res) => {
@@ -131,6 +174,9 @@ export function createApp(stores: Stores, options: AppOptions = {}) {
       message = err.message;
     } else if (err instanceof FetchError) {
       status = 502;
+      message = err.message;
+    } else if (err instanceof PhotoReadError) {
+      status = err.status;
       message = err.message;
     } else if (typeof (err as { status?: unknown })?.status === 'number') {
       // Errors raised by body parsing (malformed JSON, payload too large).

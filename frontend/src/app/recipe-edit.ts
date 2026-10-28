@@ -30,6 +30,9 @@ const blank = (): Recipe => ({
     } @else {
       <a class="back" [routerLink]="cancelLink()">← Cancel</a>
       <h1>{{ isNew() ? 'New recipe' : 'Edit recipe' }}</h1>
+      @if (fromPhotos()) {
+        <p class="notice" role="status">Read from your photos. Check it against the book, then save.</p>
+      }
 
       <datalist id="section-options">
         @for (name of sectionOptions(); track name) {
@@ -223,6 +226,8 @@ export class RecipeEdit implements OnInit {
   draft: Recipe = blank();
 
   readonly isNew = signal(false);
+  /** The form was filled in from photos of a cookbook (see PhotoImportDialog). */
+  readonly fromPhotos = signal(false);
   readonly loading = signal(true);
   readonly loadError = signal('');
   readonly saving = signal(false);
@@ -237,9 +242,17 @@ export class RecipeEdit implements OnInit {
   async ngOnInit(): Promise<void> {
     if (this.route.snapshot.data['mode'] === 'create') {
       this.isNew.set(true);
-      this.draft = blank();
-      this.addIngredient();
-      this.addStep();
+      // A recipe read from photos arrives in the navigation state (kept by the browser on reload).
+      const fromPhotos = history.state?.draft as Partial<Recipe> | undefined;
+      if (fromPhotos?.ingredients && fromPhotos.steps) {
+        this.draft = { ...blank(), ...structuredClone(fromPhotos) };
+        this.fromPhotos.set(true);
+        this.refreshSectionOptions();
+      } else {
+        this.draft = blank();
+        this.addIngredient();
+        this.addStep();
+      }
       this.loading.set(false);
       return;
     }

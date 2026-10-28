@@ -4,6 +4,7 @@ import test from 'node:test';
 import { createApp } from '../src/app.ts';
 import { FetchError } from '../src/fetchPage.ts';
 import { createMemoryStores } from '../src/memoryStores.ts';
+import type { PhotoReader } from '../src/photoImport.ts';
 import { BLOG_PAGE, NO_RECIPE_PAGE } from './fixtures.ts';
 
 type Reply = { status: number; json: any; headers: Headers };
@@ -30,9 +31,14 @@ function makeClient(base: string): Call {
 async function withServer(
   fetchPage: (url: string) => Promise<{ html: string; finalUrl: string }>,
   run: (call: Call, newClient: () => Call) => Promise<void>,
-  options: { now?: () => number; signupCode?: string } = {},
+  options: { now?: () => number; signupCode?: string; readPhotos?: PhotoReader | null } = {},
 ) {
-  const app = createApp(createMemoryStores(), { fetchPage, now: options.now, signupCode: options.signupCode });
+  const app = createApp(createMemoryStores(), {
+    fetchPage,
+    now: options.now,
+    signupCode: options.signupCode,
+    readPhotos: options.readPhotos ?? null,
+  });
   const server = app.listen(0, '127.0.0.1');
   await new Promise((resolve) => server.once('listening', resolve));
   const base = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
@@ -264,5 +270,87 @@ test("hiding photos is saved per theme and doesn't change with the theme", async
     // Turning everything off sticks; it doesn't fall back to the default.
     await alice('PUT', '/api/auth/hide-images', { themes: [] });
     assert.deepEqual((await alice('GET', '/api/auth/me')).json.hideImagesIn, []);
+  });
+});
+
+const PHOTO = { mediaType: 'image/jpeg', data: 'aGVsbG8=' };
+
+const cookbookReading = {
+  found: true,
+  title: 'Lemon Chicken Traybake',
+  servings: 'Serves 4',
+  prepTime: '10 min',
+  cookTime: '45 min',
+  totalTime: null,
+  ingredients: [
+    { text: '8 chicken thighs', section: null },
+    { text: '2 lemons', section: null },
+    { text: '  1 tbsp   olive oil ', section: null },
+  ],
+  steps: [
+    { text: 'Heat the oven to 200C.', section: null },
+    { text: 'Toss the chicken thighs with the olive oil and lemons, then roast.', section: null },
+  ],
+};
+
+test('photo import reads the photos into an unsaved draft for the editor', async () => {
+  let seen: unknown[] = [];
+  const readPhotos: PhotoReader = async (photos) => {
+    seen = photos;
+    return cookbookReading;
+  };
+  await withServer(okPage, async (call) => {
+    const res = await call('POST', '/api/recipes/import-photos', { photos: [PHOTO, { ...PHOTO, mediaType: 'image/png' }] });
+    assert.equal(res.status, 200);
+    assert.equal(seen.length, 2);
+    const draft = res.json;
+    assert.equal(draft.title, 'Lemon Chicken Traybake');
+    assert.equal(draft.servings, 'Serves 4');
+    assert.equal(draft.totalTime, undefined);
+    assert.deepEqual(draft.tags, ['Chicken']);
+    assert.equal(draft.ingredients[2].text, '1 tbsp olive oil');
+    assert.equal(draft.steps[1].ingredientIds.length, 3);
+    assert.equal(draft.id, undefined);
+    // Nothing is saved until the cook saves it from the editor.
+    assert.equal((await call('GET', '/api/recipes')).json.length, 0);
+  }, { readPhotos });
+});
+
+test('photo import checks the photos, needs a login, and says when nothing was found', async () => {
+  const readPhotos: PhotoReader = async () => ({ ...cookbookReading, found: false, ingredients: [], steps: [] });
+  await withServer(okPage, async (call, newClient) => {
+    assert.equal((await call('POST', '/api/recipes/import-photos', { photos: [] })).status, 400);
+    assert.equal((await call('POST', '/api/recipes/import-photos', { photos: [{ mediaType: 'image/gif', data: 'x' }] })).status, 400);
+    assert.equal((await call('POST', '/api/recipes/import-photos', { photos: Array(7).fill(PHOTO) })).status, 400);
+    assert.equal((await newClient()('POST', '/api/recipes/import-photos', { photos: [PHOTO] })).status, 401);
+    const none = await call('POST', '/api/recipes/import-photos', { photos: [PHOTO] });
+    assert.equal(none.status, 422);
+    assert.match(none.json.error, /photos/);
+  }, { readPhotos });
+});
+
+test('photo import accepts photo-sized requests but other routes keep the small limit', async () => {
+  const readPhotos: PhotoReader = async () => cookbookReading;
+  const big = 'A'.repeat(3 * 1024 * 1024);
+  await withServer(okPage, async (call) => {
+    assert.equal((await call('POST', '/api/recipes/import-photos', { photos: [{ ...PHOTO, data: big }] })).status, 200);
+    assert.equal((await call('POST', '/api/recipes', { title: big, ingredients: [], steps: [] })).status, 413);
+  }, { readPhotos });
+});
+
+test('photo import is limited per person per day, and off without a reader', async () => {
+  let clock = 0;
+  const readPhotos: PhotoReader = async () => cookbookReading;
+  await withServer(okPage, async (call) => {
+    for (let i = 0; i < 30; i++) assert.equal((await call('POST', '/api/recipes/import-photos', { photos: [PHOTO] })).status, 200);
+    assert.equal((await call('POST', '/api/recipes/import-photos', { photos: [PHOTO] })).status, 429);
+    clock += 24 * 60 * 60 * 1000 + 1;
+    assert.equal((await call('POST', '/api/recipes/import-photos', { photos: [PHOTO] })).status, 200);
+  }, { readPhotos, now: () => clock });
+
+  await withServer(okPage, async (call) => {
+    const off = await call('POST', '/api/recipes/import-photos', { photos: [PHOTO] });
+    assert.equal(off.status, 503);
+    assert.match(off.json.error, /isn't set up/);
   });
 });

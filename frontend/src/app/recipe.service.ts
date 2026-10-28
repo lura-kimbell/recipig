@@ -2,6 +2,12 @@ import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Recipe, RecipeDraft } from './models';
 
+/** One photo of a cookbook page, resized in the browser, as base64 without a data: prefix. */
+export interface PhotoUpload {
+  mediaType: 'image/jpeg';
+  data: string;
+}
+
 @Injectable({ providedIn: 'root' })
 export class RecipeService {
   private readonly http = inject(HttpClient);
@@ -20,6 +26,11 @@ export class RecipeService {
 
   importFromUrl(url: string) {
     return this.http.post<Recipe>('/api/recipes/import', { url });
+  }
+
+  /** Reads a recipe from photos; returns an unsaved draft for the editor. */
+  importFromPhotos(photos: PhotoUpload[]) {
+    return this.http.post<RecipeDraft>('/api/recipes/import-photos', { photos });
   }
 
   save(recipe: Recipe) {

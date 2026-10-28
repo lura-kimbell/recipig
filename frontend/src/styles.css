@@ -1464,6 +1464,51 @@ details summary {
   margin-top: 1.1rem;
 }
 
+/* From Photos: the pages picked so far, in order. */
+.photo-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(7.5rem, 1fr));
+  gap: 0.7rem;
+  margin: 0 0 1rem;
+  padding: 0;
+  list-style: none;
+}
+.photo-item {
+  display: grid;
+  gap: 0.35rem;
+  justify-items: center;
+}
+.photo-item img {
+  width: 100%;
+  aspect-ratio: 3 / 4;
+  object-fit: cover;
+  background: var(--field);
+  border: var(--border-w-hair) var(--line) var(--outline);
+  border-radius: var(--radius-item);
+}
+.photo-page {
+  font-weight: 700;
+}
+.photo-tools {
+  display: flex;
+  gap: 0.3rem;
+}
+.photo-pickers {
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+/* The editor, filled in from photos: a reminder to check the reading. */
+.notice {
+  margin: 0 0 1rem;
+  padding: 0.5rem 1rem;
+  color: var(--bark);
+  font-weight: 700;
+  background: var(--field);
+  border: var(--border-w-hair) var(--line) var(--leaf);
+  border-radius: var(--radius-field);
+}
+
 .theme-options {
   display: grid;
   gap: 0.9rem;

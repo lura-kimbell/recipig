@@ -5,15 +5,15 @@ import { detectTags } from './tags.ts';
 import type { RecipeDraft } from './types.ts';
 
 export class NoRecipeError extends Error {
-  constructor() {
-    super(
-      "Couldn't find a recipe on that page. Some sites don't publish their recipe in a form that can be imported.",
-    );
+  constructor(
+    message = "Couldn't find a recipe on that page. Some sites don't publish their recipe in a form that can be imported.",
+  ) {
+    super(message);
   }
 }
 
 /** One ingredient line or step, with the sub-heading it sat under (if any). */
-interface RawItem {
+export interface RawItem {
   text: string;
   section?: string;
 }
@@ -89,7 +89,7 @@ const plain = (lines: string[]): RawItem[] => lines.map((t) => ({ text: t }));
  * Sections only help when they actually divide the recipe. If every item has
  * the same label (a lone "Instructions" section, say) the label is noise.
  */
-function dropSingleSection(items: RawItem[]): RawItem[] {
+export function dropSingleSection(items: RawItem[]): RawItem[] {
   const labels = new Set(items.map((i) => i.section));
   if (labels.size === 1 && items[0]?.section) return items.map(({ text: t }) => ({ text: t }));
   return items;
@@ -457,6 +457,28 @@ export function extractRecipe(html: string, sourceUrl?: string): RecipeDraft {
   );
   if (ingredientItems.length === 0 || stepItems.length === 0) throw new NoRecipeError();
 
+  return buildDraft({
+    title: structured?.title || pageTitle($) || 'Untitled recipe',
+    sourceUrl,
+    image: bestImage($, structured, sourceUrl),
+    servings: structured?.servings,
+    prepTime: structured?.prepTime,
+    cookTime: structured?.cookTime,
+    totalTime: structured?.totalTime,
+    ingredients: ingredientItems,
+    steps: stepItems,
+  });
+}
+
+/**
+ * A recipe draft from its title, details and raw ingredient and step lines, however they
+ * were read (a web page, or photos of a cookbook): every item gets an id, each step is
+ * linked to the ingredients it mentions, and main-ingredient tags are guessed.
+ */
+export function buildDraft(
+  raw: Omit<RecipeDraft, 'ingredients' | 'steps' | 'tags'> & { ingredients: RawItem[]; steps: RawItem[] },
+): RecipeDraft {
+  const { ingredients: ingredientItems, steps: stepItems, ...details } = raw;
   const ingredients = ingredientItems.map((i) => ({
     id: randomUUID(),
     text: i.text,
@@ -469,20 +491,6 @@ export function extractRecipe(html: string, sourceUrl?: string): RecipeDraft {
     ingredientIds: linkIngredientsToStep(s.text, ingredients, s.section),
     ...(s.section ? { section: s.section } : {}),
   }));
-
-  const title = structured?.title || pageTitle($) || 'Untitled recipe';
-  const tags = detectTags(title, ingredients.map((i) => i.text));
-
-  return {
-    title,
-    sourceUrl,
-    image: bestImage($, structured, sourceUrl),
-    servings: structured?.servings,
-    prepTime: structured?.prepTime,
-    cookTime: structured?.cookTime,
-    totalTime: structured?.totalTime,
-    ...(tags.length > 0 ? { tags } : {}),
-    ingredients,
-    steps,
-  };
+  const tags = detectTags(details.title, ingredients.map((i) => i.text));
+  return { ...details, ...(tags.length > 0 ? { tags } : {}), ingredients, steps };
 }
