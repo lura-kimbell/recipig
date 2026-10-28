@@ -14,6 +14,8 @@ export interface User {
   createdAt: string;
   /** The look they picked (one of THEMES); absent means the default. */
   theme?: Theme;
+  /** Themes in which they've chosen to hide recipe photos; absent means DEFAULT_HIDE_IMAGES_IN. */
+  hideImagesIn?: Theme[];
 }
 
 /** The app's looks. The first is the default. */
@@ -21,11 +23,15 @@ export const THEMES = ['friendly', 'aurora', 'terminal'] as const;
 export type Theme = (typeof THEMES)[number];
 export const isTheme = (v: unknown): v is Theme => typeof v === 'string' && (THEMES as readonly string[]).includes(v);
 
+/** Until someone changes it, recipe photos are hidden in Terminal, to keep its text-only look. */
+export const DEFAULT_HIDE_IMAGES_IN: readonly Theme[] = ['terminal'];
+
 /** The part of a user that is safe to send to the browser. */
 export interface PublicUser {
   id: string;
   username: string;
   theme: Theme;
+  hideImagesIn: Theme[];
 }
 
 export const toPublicUser = (user: User): PublicUser => ({
@@ -33,6 +39,7 @@ export const toPublicUser = (user: User): PublicUser => ({
   username: user.username,
   // A theme that has since been removed falls back to the default.
   theme: isTheme(user.theme) ? user.theme : THEMES[0],
+  hideImagesIn: (user.hideImagesIn ?? DEFAULT_HIDE_IMAGES_IN).filter(isTheme),
 });
 
 /**
@@ -73,6 +80,8 @@ export interface UserStore {
   findById(id: string): Promise<User | undefined>;
   /** Saves the user's theme; false if there is no such user. */
   setTheme(id: string, theme: Theme): Promise<boolean>;
+  /** Saves the themes in which the user hides recipe photos; false if there is no such user. */
+  setHideImagesIn(id: string, themes: Theme[]): Promise<boolean>;
 }
 
 export interface SessionStore {

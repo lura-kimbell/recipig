@@ -32,6 +32,12 @@ class MemoryUserStore implements UserStore {
     if (found) found.theme = theme;
     return found !== undefined;
   }
+
+  async setHideImagesIn(id: string, themes: Theme[]): Promise<boolean> {
+    const found = this.users.find((u) => u.id === id);
+    if (found) found.hideImagesIn = [...themes];
+    return found !== undefined;
+  }
 }
 
 class MemorySessionStore implements SessionStore {

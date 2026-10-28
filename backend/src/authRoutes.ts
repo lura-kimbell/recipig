@@ -143,5 +143,17 @@ export function createAuth(stores: Stores, options: AuthOptions = {}) {
     res.json({ ...user, theme });
   });
 
+  /** Saves the themes in which recipe photos are hidden (the whole list, replacing the old one). */
+  router.put('/hide-images', requireUser, async (req, res) => {
+    const themes: unknown = req.body?.themes;
+    if (!Array.isArray(themes) || !themes.every(isTheme)) {
+      throw new ValidationError(`Themes must be a list drawn from: ${THEMES.join(', ')}.`);
+    }
+    const hideImagesIn = THEMES.filter((t) => themes.includes(t));
+    const user = currentUser(res);
+    await stores.users.setHideImagesIn(user.id, hideImagesIn);
+    res.json({ ...user, hideImagesIn });
+  });
+
   return { router, loadUser, requireUser };
 }

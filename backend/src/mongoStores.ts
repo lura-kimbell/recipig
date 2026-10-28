@@ -21,6 +21,7 @@ interface UserDoc {
   passwordHash: string;
   createdAt: string;
   theme?: Theme;
+  hideImagesIn?: Theme[];
 }
 
 interface SessionDoc {
@@ -60,6 +61,7 @@ class MongoUserStore implements UserStore {
       passwordHash: doc.passwordHash,
       createdAt: doc.createdAt,
       ...(doc.theme ? { theme: doc.theme } : {}),
+      ...(doc.hideImagesIn ? { hideImagesIn: doc.hideImagesIn } : {}),
     };
   }
 
@@ -92,6 +94,11 @@ class MongoUserStore implements UserStore {
 
   async setTheme(id: string, theme: Theme): Promise<boolean> {
     const result = await this.col.updateOne({ _id: id }, { $set: { theme } });
+    return result.matchedCount === 1;
+  }
+
+  async setHideImagesIn(id: string, themes: Theme[]): Promise<boolean> {
+    const result = await this.col.updateOne({ _id: id }, { $set: { hideImagesIn: themes } });
     return result.matchedCount === 1;
   }
 }

@@ -274,7 +274,8 @@
   --lilac: #1f1f1f;
   --blossom: #1f1f1f;
   --mint: #1f1f1f;
-  --chip: #222222;
+  /* Info pills ("2 ingredients", counts) are plain green text, no box */
+  --chip: transparent;
 
   --primary: #3cff6e;
   --primary-hover: #8dffab;
@@ -292,9 +293,9 @@
   --card-title-ink: var(--leaf);
   --chip-ink: var(--leaf);
   --tag-ink: var(--leaf);
+  /* Card tag icons are bare green glyphs, like characters on the screen */
   --icon-badge-border: transparent;
-  /* 'initial' unsets it, so each badge uses its own tag colour (see .tag-pill.icon-only) */
-  --icon-badge-bg: initial;
+  --icon-badge-bg: transparent;
   --icon-badge-ink: var(--tag-ink);
   --icon-badge-opacity: 1;
   --icon-badge-size: 2rem;
@@ -1570,6 +1571,16 @@ details summary {
   background: var(--mint);
   border: var(--border-w-hair) var(--line) var(--outline);
   border-radius: var(--radius-pill);
+}
+
+/* Recipe photos switched off for the theme showing (theme picker): no card thumbnails
+   (photo or emoji) and no photo at the top of a recipe. The editor's preview stays. */
+[data-hide-images] .recipe-card .thumb,
+[data-hide-images] .hero:not(.edit-preview) {
+  display: none;
+}
+.theme-photos {
+  margin-top: 1rem;
 }
 
 /* ---------- Touches for one theme's page chrome ---------- */

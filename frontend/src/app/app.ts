@@ -91,10 +91,12 @@ export class App {
   readonly openMenu = signal<MenuName | null>(null);
 
   constructor() {
-    // Logging in (or coming back logged in) brings the account's theme with it.
+    // Logging in (or coming back logged in) brings the account's theme, and the themes it
+    // hides recipe photos in, with it.
     effect(() => {
-      const theme = this.auth.user()?.theme;
-      if (isThemeId(theme)) this.theme.apply(theme);
+      const user = this.auth.user();
+      if (isThemeId(user?.theme)) this.theme.apply(user.theme);
+      this.theme.hideImagesIn.set((user?.hideImagesIn ?? []).filter(isThemeId));
     });
   }
 

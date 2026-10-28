@@ -7,6 +7,8 @@ export interface User {
   username: string;
   /** The look they picked; see ThemeService. */
   theme?: string;
+  /** Themes in which they hide recipe photos; see ThemeService. */
+  hideImagesIn?: string[];
 }
 
 @Injectable({ providedIn: 'root' })

@@ -86,4 +86,7 @@ test('a saved theme that no longer exists falls back to the default', () => {
   assert.equal(toPublicUser({ ...user, theme: 'terminal' }).theme, 'terminal');
   assert.equal(toPublicUser({ ...user, theme: 'sanguine' as never }).theme, 'friendly');
   assert.equal(toPublicUser(user).theme, 'friendly');
+  assert.deepEqual(toPublicUser({ ...user, hideImagesIn: ['aurora', 'sanguine' as never] }).hideImagesIn, ['aurora']);
+  assert.deepEqual(toPublicUser(user).hideImagesIn, ['terminal']);
+  assert.deepEqual(toPublicUser({ ...user, hideImagesIn: [] }).hideImagesIn, []);
 });

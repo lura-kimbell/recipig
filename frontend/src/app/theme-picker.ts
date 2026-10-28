@@ -1,4 +1,4 @@
-import { Component, ElementRef, inject, signal, viewChild } from '@angular/core';
+import { Component, ElementRef, computed, inject, signal, viewChild } from '@angular/core';
 import { errorMessage } from './recipe.service';
 import { THEMES, ThemeId, ThemeService } from './theme.service';
 
@@ -36,6 +36,10 @@ import { THEMES, ThemeId, ThemeService } from './theme.service';
           </label>
         }
       </div>
+      <label class="check theme-photos">
+        <input type="checkbox" [checked]="theme.imagesHidden()" (change)="setImagesHidden($any($event.target).checked)" />
+        <span>Hide recipe photos in {{ currentName() }}</span>
+      </label>
       @if (error()) {
         <p class="error" role="alert">Couldn't save your theme: {{ error() }}</p>
       }
@@ -51,6 +55,7 @@ export class ThemePicker {
 
   readonly themes = THEMES;
   readonly error = signal('');
+  readonly currentName = computed(() => THEMES.find((t) => t.id === this.theme.current())!.name);
 
   open(): void {
     this.error.set('');
@@ -59,6 +64,16 @@ export class ThemePicker {
 
   close(): void {
     this.dialog().nativeElement.close();
+  }
+
+  /** The photo setting belongs to the theme showing now; other themes keep their own. */
+  async setImagesHidden(hidden: boolean): Promise<void> {
+    this.error.set('');
+    try {
+      await this.theme.setImagesHidden(this.theme.current(), hidden);
+    } catch (e) {
+      this.error.set(errorMessage(e));
+    }
   }
 
   async choose(id: ThemeId): Promise<void> {

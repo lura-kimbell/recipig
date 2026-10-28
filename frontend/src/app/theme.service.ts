@@ -1,5 +1,5 @@
 import { HttpClient } from '@angular/common/http';
-import { Injectable, inject, signal } from '@angular/core';
+import { Injectable, computed, effect, inject, signal } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 
 /** The app's looks, in the order the picker shows them. Must match THEMES in backend/src/stores.ts. */
@@ -25,9 +25,15 @@ export class ThemeService {
   private readonly http = inject(HttpClient);
 
   readonly current = signal<ThemeId>(readStored() ?? 'friendly');
+  /** Themes in which recipe photos are hidden (a per-theme choice, kept on the account). */
+  readonly hideImagesIn = signal<ThemeId[]>([]);
+  /** Whether the theme showing now hides recipe photos. */
+  readonly imagesHidden = computed(() => this.hideImagesIn().includes(this.current()));
 
   constructor() {
     this.apply(this.current());
+    // styles.css hides the card thumbnails and the recipe page photo under this attribute.
+    effect(() => document.documentElement.toggleAttribute('data-hide-images', this.imagesHidden()));
   }
 
   /** Show a theme on this device. */
@@ -39,6 +45,19 @@ export class ThemeService {
       localStorage.setItem(STORAGE_KEY, theme);
     } catch {
       // Private browsing or storage turned off: the theme still applies for this visit.
+    }
+  }
+
+  /** Hide or show recipe photos in one theme, and save the choice on the account. */
+  async setImagesHidden(theme: ThemeId, hidden: boolean): Promise<void> {
+    const before = this.hideImagesIn();
+    const next = THEMES.map((t) => t.id).filter((t) => (t === theme ? hidden : before.includes(t)));
+    this.hideImagesIn.set(next);
+    try {
+      await firstValueFrom(this.http.put('/api/auth/hide-images', { themes: next }));
+    } catch (e) {
+      this.hideImagesIn.set(before);
+      throw e;
     }
   }
 

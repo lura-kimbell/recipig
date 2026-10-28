@@ -248,3 +248,21 @@ test("each person's theme is saved on their account", async () => {
     assert.equal((await newClient()('PUT', '/api/auth/theme', { theme: 'aurora' })).status, 401);
   });
 });
+
+test("hiding photos is saved per theme and doesn't change with the theme", async () => {
+  await withServer(okPage, async (alice, newClient) => {
+    // Until changed, photos are hidden in Terminal only.
+    assert.deepEqual((await alice('GET', '/api/auth/me')).json.hideImagesIn, ['terminal']);
+    const saved = await alice('PUT', '/api/auth/hide-images', { themes: ['terminal', 'aurora', 'aurora'] });
+    assert.equal(saved.status, 200);
+    assert.deepEqual(saved.json.hideImagesIn, ['aurora', 'terminal']);
+    await alice('PUT', '/api/auth/theme', { theme: 'friendly' });
+    assert.deepEqual((await alice('GET', '/api/auth/me')).json.hideImagesIn, ['aurora', 'terminal']);
+    assert.equal((await alice('PUT', '/api/auth/hide-images', { themes: ['neon'] })).status, 400);
+    assert.equal((await alice('PUT', '/api/auth/hide-images', { themes: 'aurora' })).status, 400);
+    assert.equal((await newClient()('PUT', '/api/auth/hide-images', { themes: [] })).status, 401);
+    // Turning everything off sticks; it doesn't fall back to the default.
+    await alice('PUT', '/api/auth/hide-images', { themes: [] });
+    assert.deepEqual((await alice('GET', '/api/auth/me')).json.hideImagesIn, []);
+  });
+});
