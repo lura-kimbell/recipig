@@ -1252,6 +1252,9 @@ details summary {
   font-weight: 700;
   color: var(--leaf-ink);
 }
+.step-links-clear {
+  margin-top: 0.5rem;
+}
 
 .item-row {
   flex-wrap: wrap;

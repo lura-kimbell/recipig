@@ -235,6 +235,11 @@ const blank = (): Recipe => ({
                     }
                   </label>
                 }
+                @if (step.ingredientIds.length > 0) {
+                  <button type="button" class="btn small step-links-clear" (click)="step.ingredientIds = []">
+                    Clear checkmarks
+                  </button>
+                }
               </details>
             }
           </div>
