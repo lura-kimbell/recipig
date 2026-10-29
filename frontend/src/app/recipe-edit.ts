@@ -1,9 +1,11 @@
-import { Component, OnInit, inject, signal } from '@angular/core';
+import { Component, OnInit, inject, signal, viewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { RECIPE_TAGS, Recipe, RecipeTag, Step } from './models';
 import { RecipeService, errorMessage, newId } from './recipe.service';
+import { SourceService } from './source.service';
+import { SourcesDialog } from './sources-dialog';
 
 const blank = (): Recipe => ({
   id: '',
@@ -20,7 +22,7 @@ const blank = (): Recipe => ({
  */
 @Component({
   selector: 'app-recipe-edit',
-  imports: [FormsModule, RouterLink],
+  imports: [FormsModule, RouterLink, SourcesDialog],
   template: `
     @if (loading()) {
       <p class="muted">Loading…</p>
@@ -31,7 +33,7 @@ const blank = (): Recipe => ({
       <a class="back" [routerLink]="cancelLink()">← Cancel</a>
       <h1>{{ isNew() ? 'New recipe' : 'Edit recipe' }}</h1>
       @if (fromPhotos()) {
-        <p class="notice" role="status">Read from your photos. Check it against the book, add the book under Source, then save.</p>
+        <p class="notice" role="status">Read from your photos. Check it against the book, pick the book as its Source, then save.</p>
       }
 
       <datalist id="section-options">
@@ -45,9 +47,21 @@ const blank = (): Recipe => ({
           <span>Title</span>
           <input type="text" [(ngModel)]="draft.title" />
         </label>
+        <div class="field">
+          <label for="recipe-source">Source <span class="muted small">(a cookbook, website or person)</span></label>
+          <div class="row source-row">
+            <select id="recipe-source" name="source" class="grow" [(ngModel)]="draft.sourceId">
+              <option [ngValue]="undefined">None</option>
+              @for (s of sources.sources(); track s.id) {
+                <option [ngValue]="s.id">{{ s.name }}</option>
+              }
+            </select>
+            <button type="button" class="btn small" (click)="newSource()">+ New source</button>
+          </div>
+        </div>
         <label class="field">
-          <span>Source <span class="muted small">(a link, or the book it's from)</span></span>
-          <input type="text" placeholder="https://example.com/recipe, or Simple by Ottolenghi, p. 112" [(ngModel)]="source" />
+          <span>Link <span class="muted small">(the page it came from)</span></span>
+          <input type="url" placeholder="https://example.com/best-pancakes" [(ngModel)]="draft.sourceUrl" />
         </label>
         <label class="field">
           <span>Image link</span>
@@ -219,6 +233,7 @@ const blank = (): Recipe => ({
         <a class="btn" [routerLink]="cancelLink()">Cancel</a>
       </div>
     }
+    <app-sources-dialog />
   `,
 })
 export class RecipeEdit implements OnInit {
@@ -226,10 +241,11 @@ export class RecipeEdit implements OnInit {
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
 
+  protected readonly sources = inject(SourceService);
+  private readonly sourcesDialog = viewChild.required(SourcesDialog);
+
   /** A working copy; nothing is saved until the user presses Save. */
   draft: Recipe = blank();
-  /** The Source box: a web link (saved as sourceUrl) or any other text, such as a cookbook (saved as source). */
-  source = '';
 
   readonly isNew = signal(false);
   /** The form was filled in from photos of a cookbook (see PhotoImportDialog). */
@@ -246,13 +262,15 @@ export class RecipeEdit implements OnInit {
   readonly allTags = RECIPE_TAGS;
 
   async ngOnInit(): Promise<void> {
+    // The source picker fills in when they arrive; the form doesn't wait for them.
+    this.sources.load().catch((e) => this.saveError.set(errorMessage(e)));
+
     if (this.route.snapshot.data['mode'] === 'create') {
       this.isNew.set(true);
       // A recipe read from photos arrives in the navigation state (kept by the browser on reload).
       const fromPhotos = history.state?.draft as Partial<Recipe> | undefined;
       if (fromPhotos?.ingredients && fromPhotos.steps) {
         this.draft = { ...blank(), ...structuredClone(fromPhotos) };
-        this.source = this.draft.sourceUrl ?? this.draft.source ?? '';
         this.fromPhotos.set(true);
         this.refreshSectionOptions();
       } else {
@@ -272,7 +290,6 @@ export class RecipeEdit implements OnInit {
     }
     try {
       this.draft = structuredClone(await firstValueFrom(this.service.get(id)));
-      this.source = this.draft.sourceUrl ?? this.draft.source ?? '';
       this.cancelLink.set(['/recipes', this.draft.id]);
       this.refreshSectionOptions();
     } catch (e) {
@@ -280,6 +297,12 @@ export class RecipeEdit implements OnInit {
     } finally {
       this.loading.set(false);
     }
+  }
+
+  /** Make a source in the dialog and pick it for this recipe. */
+  async newSource(): Promise<void> {
+    const created = await this.sourcesDialog().openNew();
+    if (created) this.draft.sourceId = created.id;
   }
 
   refreshSectionOptions(): void {
@@ -378,13 +401,12 @@ export class RecipeEdit implements OnInit {
         section: s.section?.trim() || undefined,
         ingredientIds: s.ingredientIds.filter((id) => known.has(id)),
       }));
-    const source = this.source.trim();
-    const isLink = /^https?:\/\/\S+$/i.test(source);
     return {
       ...this.draft,
       title: this.draft.title.trim(),
-      sourceUrl: isLink ? source : undefined,
-      source: !isLink && source ? source : undefined,
+      sourceUrl: this.draft.sourceUrl?.trim() || undefined,
+      // A source deleted since this page opened is simply dropped.
+      sourceId: this.draft.sourceId && this.sources.byId().has(this.draft.sourceId) ? this.draft.sourceId : undefined,
       image: this.draft.image?.trim() || undefined,
       notes: this.draft.notes?.trim() || undefined,
       ingredients,

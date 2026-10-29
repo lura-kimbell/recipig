@@ -1,3 +1,4 @@
+import type { Source, SourceInput } from './sources.ts';
 import type { Recipe, RecipeDraft } from './types.ts';
 
 /**
@@ -62,6 +63,22 @@ export function foldStepNotes(recipe: Recipe): Recipe {
   return { ...recipe, steps, ...(notes ? { notes } : {}) };
 }
 
+/**
+ * Briefly (October 2026) a recipe's source was free text such as a cookbook name. Sources
+ * are now their own records (sources.ts), so any such text is moved into the recipe's notes
+ * as "Source: ..." when it is read, for the cook to turn into a source. Saving makes it permanent.
+ */
+export function foldSourceText(recipe: Recipe): Recipe {
+  const { source, ...rest } = recipe as Recipe & { source?: unknown };
+  if (source === undefined) return recipe;
+  const text = typeof source === 'string' ? source.trim() : '';
+  const notes = [rest.notes?.trim(), text && 'Source: ' + text].filter(Boolean).join('\n\n');
+  return { ...rest, ...(notes ? { notes } : {}) };
+}
+
+/** A recipe as read from storage, with older shapes brought up to date. */
+export const fromStorage = (recipe: Recipe): Recipe => foldSourceText(foldStepNotes(recipe));
+
 export interface SessionRecord {
   userId: string;
   expiresAt: Date;
@@ -102,10 +119,31 @@ export interface RecipeStore {
   remove(userId: string, id: string): Promise<boolean>;
   /** Insert a recipe exactly as it is (id and dates kept); false if that id already exists. Used by the JSON import script. */
   restore(userId: string, recipe: Recipe): Promise<boolean>;
+  /** Take a source off every recipe that has it (when the source is deleted). */
+  clearSource(userId: string, sourceId: string): Promise<void>;
+}
+
+export class SourceNameTakenError extends Error {
+  constructor() {
+    super('You already have a source with that name.');
+  }
+}
+
+/** One user's sources. Names are unique per user, ignoring case. */
+export interface SourceStore {
+  /** In name order. */
+  list(userId: string): Promise<Source[]>;
+  get(userId: string, id: string): Promise<Source | undefined>;
+  /** Throws SourceNameTakenError for a name already used. */
+  create(userId: string, input: SourceInput): Promise<Source>;
+  /** Throws SourceNameTakenError for a name another source uses; undefined if there is no such source. */
+  update(userId: string, id: string, input: SourceInput): Promise<Source | undefined>;
+  remove(userId: string, id: string): Promise<boolean>;
 }
 
 export interface Stores {
   users: UserStore;
   sessions: SessionStore;
   recipes: RecipeStore;
+  sources: SourceStore;
 }

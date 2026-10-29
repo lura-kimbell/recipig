@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { UsernameTakenError } from '../src/stores.ts';
+import { SourceNameTakenError, UsernameTakenError } from '../src/stores.ts';
 import type { Stores } from '../src/stores.ts';
 import type { RecipeDraft } from '../src/types.ts';
 
@@ -85,7 +85,7 @@ export function runStoreContract(name: string, open: () => Promise<{ stores: Sto
   });
 
   t('update keeps id and createdAt, replaces the rest, and clears optional fields left out', async ({ recipes }) => {
-    const created = await recipes.create('u1', draft('Old', { servings: '4', sourceUrl: 'https://x.example/', source: 'A Book, p. 12', notes: 'n', tags: ['Chicken'] }));
+    const created = await recipes.create('u1', draft('Old', { servings: '4', sourceUrl: 'https://x.example/', sourceId: 'src-1', notes: 'n', tags: ['Chicken'] }));
     await new Promise((r) => setTimeout(r, 5));
     const updated = await recipes.update('u1', created.id, draft('New', { ingredients: [{ id: 'i9', text: '1 cup milk', checked: true, section: 'Wet' }] }));
     assert.equal(updated?.id, created.id);
@@ -94,7 +94,7 @@ export function runStoreContract(name: string, open: () => Promise<{ stores: Sto
     assert.equal(updated?.title, 'New');
     assert.equal('servings' in (updated ?? {}), false);
     assert.equal('sourceUrl' in (updated ?? {}), false);
-    assert.equal('source' in (updated ?? {}), false);
+    assert.equal('sourceId' in (updated ?? {}), false);
     assert.equal('tags' in (updated ?? {}), false);
     assert.equal('notes' in (updated ?? {}), false);
 
@@ -120,6 +120,48 @@ export function runStoreContract(name: string, open: () => Promise<{ stores: Sto
     assert.equal(read?.notes, 'Good with rice.\n\nStep 1: Whisk longer.');
     assert.ok(read?.steps.every((s) => !('notes' in s)));
     assert.equal((await recipes.list('u1')).find((r) => r.id === 'legacy-1')?.notes, read?.notes);
+  });
+
+  t('an old free-text source is moved into the notes when read, and dropped on save', async ({ recipes }) => {
+    const created = await recipes.create('u1', draft('Book recipe', { notes: 'Lovely.' }));
+    assert.equal(await recipes.restore('u1', { ...created, id: 'legacy-2', source: ' The Roasting Tin, p. 48 ' } as never), true);
+    const read = await recipes.get('u1', 'legacy-2');
+    assert.equal(read?.notes, 'Lovely.\n\nSource: The Roasting Tin, p. 48');
+    assert.equal('source' in (read ?? {}), false);
+    const { id: _id, createdAt: _c, updatedAt: _u, ...rest } = read!;
+    const saved = await recipes.update('u1', 'legacy-2', rest);
+    assert.equal(saved?.notes, read?.notes);
+    assert.equal('source' in ((await recipes.get('u1', 'legacy-2')) ?? {}), false);
+  });
+
+  t('clearSource takes a source off only that user’s recipes that have it', async ({ recipes }) => {
+    const a = await recipes.create('u1', draft('A', { sourceId: 'book' }));
+    const b = await recipes.create('u1', draft('B', { sourceId: 'paper' }));
+    const c = await recipes.create('u2', draft('C', { sourceId: 'book' }));
+    await recipes.clearSource('u1', 'book');
+    assert.equal((await recipes.get('u1', a.id))?.sourceId, undefined);
+    assert.equal((await recipes.get('u1', b.id))?.sourceId, 'paper');
+    assert.equal((await recipes.get('u2', c.id))?.sourceId, 'book');
+  });
+
+  t('sources: names unique per user ignoring case, listed by name, private to their user', async ({ sources }) => {
+    const nyt = await sources.create('u1', { name: 'NY Times', icon: 'news' });
+    await sources.create('u1', { name: 'ottolenghi Simple', icon: 'book' });
+    await sources.create('u1', { name: 'Grandma', icon: 'home' });
+    await assert.rejects(sources.create('u1', { name: 'ny times', icon: 'globe' }), SourceNameTakenError);
+    await sources.create('u2', { name: 'NY Times', icon: 'globe' });
+    assert.deepEqual((await sources.list('u1')).map((s) => s.name), ['Grandma', 'NY Times', 'ottolenghi Simple']);
+    assert.deepEqual(await sources.get('u1', nyt.id), { id: nyt.id, name: 'NY Times', icon: 'news' });
+    assert.equal(await sources.get('u2', nyt.id), undefined);
+
+    assert.deepEqual(await sources.update('u1', nyt.id, { name: 'New York Times', icon: 'globe' }), { id: nyt.id, name: 'New York Times', icon: 'globe' });
+    await assert.rejects(sources.update('u1', nyt.id, { name: 'GRANDMA', icon: 'globe' }), SourceNameTakenError);
+    assert.ok(await sources.update('u1', nyt.id, { name: 'new york times', icon: 'globe' }));
+    assert.equal(await sources.update('u2', nyt.id, { name: 'Mine', icon: 'globe' }), undefined);
+
+    assert.equal(await sources.remove('u2', nyt.id), false);
+    assert.equal(await sources.remove('u1', nyt.id), true);
+    assert.equal(await sources.get('u1', nyt.id), undefined);
   });
 
   t('remove deletes only that recipe', async ({ recipes }) => {

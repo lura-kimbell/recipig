@@ -1,3 +1,4 @@
+import { parseSourceInput } from '../src/sources.ts';
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { parseRecipeInput, ValidationError } from '../src/validate.ts';
@@ -46,11 +47,17 @@ test('only accepts http(s) URLs for the source and image', () => {
   assert.equal(r.sourceUrl, 'https://example.com/r');
 });
 
-test('keeps a written source such as a cookbook, trimmed', () => {
-  const r = parseRecipeInput({ title: 'T', source: '  Simple by Ottolenghi, p. 112 ' });
-  assert.equal(r.source, 'Simple by Ottolenghi, p. 112');
-  assert.equal(parseRecipeInput({ title: 'T', source: ' ' }).source, undefined);
-  assert.throws(() => parseRecipeInput({ title: 'T', source: 'x'.repeat(301) }), ValidationError);
+test('keeps a source id, and drops a blank one', () => {
+  assert.equal(parseRecipeInput({ title: 'T', sourceId: 'abc' }).sourceId, 'abc');
+  assert.equal(parseRecipeInput({ title: 'T', sourceId: '' }).sourceId, undefined);
+  assert.throws(() => parseRecipeInput({ title: 'T', sourceId: 5 }), ValidationError);
+});
+
+test('source names are tidied, and need a known icon', () => {
+  assert.deepEqual(parseSourceInput({ name: '  NY   Times ', icon: 'news' }), { name: 'NY Times', icon: 'news' });
+  assert.throws(() => parseSourceInput({ name: ' ', icon: 'news' }), ValidationError);
+  assert.throws(() => parseSourceInput({ name: 'x'.repeat(61), icon: 'news' }), ValidationError);
+  assert.throws(() => parseSourceInput({ name: 'NY Times', icon: 'rocket' }), ValidationError);
 });
 
 test('turns empty optional fields into undefined', () => {

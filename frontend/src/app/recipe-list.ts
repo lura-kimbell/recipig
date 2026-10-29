@@ -4,6 +4,7 @@ import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { RECIPE_TAGS, Recipe, RecipeTag } from './models';
 import { RecipeService, errorMessage } from './recipe.service';
+import { SourceService, sourceIconUrl } from './source.service';
 import { searchRecipes } from './search';
 
 const PLACEHOLDER_EMOJI = ['🍳', '🥕', '🍰', '🍓', '🥐', '🍲'];
@@ -36,7 +37,7 @@ const PLACEHOLDER_EMOJI = ['🍳', '🥕', '🍰', '🍓', '🥐', '🍲'];
         />
       </div>
 
-      @if (filterTags().length > 0) {
+      @if (filterTags().length > 0 || filterSources().length > 0) {
       <div class="tag-filter" role="group" aria-labelledby="tag-filter-label">
         <span class="tag-filter-label" id="tag-filter-label">Show</span>
         @for (tag of filterTags(); track tag) {
@@ -51,7 +52,19 @@ const PLACEHOLDER_EMOJI = ['🍳', '🥕', '🍰', '🍓', '🥐', '🍲'];
             <span class="tag-count">{{ tagCounts()[tag] }}</span>
           </button>
         }
-        @if (selected().length > 0) {
+        @for (s of filterSources(); track s.id) {
+          <button
+            type="button"
+            class="tag-pill source-pill"
+            [style.--tag-icon]="iconUrl(s.icon)"
+            [attr.aria-pressed]="isSourceSelected(s.id)"
+            (click)="toggleSource(s.id)"
+          >
+            <span class="tag-icon" aria-hidden="true"></span>{{ s.name }}
+            <span class="tag-count">{{ sourceCounts().get(s.id) ?? 0 }}</span>
+          </button>
+        }
+        @if (filtering()) {
           <button type="button" class="link-btn" (click)="clearTags()">Show all</button>
         }
       </div>
@@ -60,7 +73,7 @@ const PLACEHOLDER_EMOJI = ['🍳', '🥕', '🍰', '🍓', '🥐', '🍲'];
       @if (results(); as found) {
         @if (found.byName.length === 0 && found.byIngredient.length === 0) {
           <p class="muted">
-            No recipes match “{{ query().trim() }}”{{ selected().length > 0 ? ' with the tags picked' : '' }}.
+            No recipes match “{{ query().trim() }}”{{ filtering() ? ' with the filters picked' : '' }}.
             <button type="button" class="link-btn" (click)="setQuery('')">Clear search</button>
           </p>
         }
@@ -81,7 +94,7 @@ const PLACEHOLDER_EMOJI = ['🍳', '🥕', '🍰', '🍓', '🥐', '🍲'];
         </ul>
       } @else {
         @if (filtered().length === 0) {
-          <p class="muted">No recipes with {{ selected().length === 1 ? 'that tag' : 'those tags' }} yet.</p>
+          <p class="muted">No recipes match {{ selected().length + selectedSources().length === 1 ? 'that filter' : 'those filters' }} yet.</p>
         }
         <ul class="grid">
           @for (r of filtered(); track r.id; let i = $index) {
@@ -111,11 +124,16 @@ const PLACEHOLDER_EMOJI = ['🍳', '🥕', '🍰', '🍓', '🥐', '🍲'];
         @if (lines?.length) {
           <p class="match-lines small">Has: {{ lines.join(', ') }}</p>
         }
-        @if (r.tags?.length) {
+        @if (r.tags?.length || sourceOf(r)) {
           <ul class="tag-list card-tags" aria-label="Tags">
             @for (tag of r.tags; track tag) {
               <li class="tag-pill icon-only" [attr.data-tag]="tag" [title]="tag">
                 <span class="tag-icon" aria-hidden="true"></span><span class="visually-hidden">{{ tag }}</span>
+              </li>
+            }
+            @if (sourceOf(r); as s) {
+              <li class="tag-pill source-pill icon-only" [style.--tag-icon]="iconUrl(s.icon)" [title]="'Source: ' + s.name">
+                <span class="tag-icon" aria-hidden="true"></span><span class="visually-hidden">Source: {{ s.name }}</span>
               </li>
             }
           </ul>
@@ -128,21 +146,34 @@ export class RecipeList implements OnInit {
   private readonly service = inject(RecipeService);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
+  private readonly sources = inject(SourceService);
 
+  readonly iconUrl = sourceIconUrl;
   readonly recipes = signal<Recipe[]>([]);
   readonly loading = signal(true);
   readonly error = signal('');
 
   /** Tags picked in the filter; kept in the URL (?tag=Chicken&tag=Fish) so Back returns to the same view. */
   readonly selected = signal<RecipeTag[]>([]);
+  /** Sources picked in the filter, by id; kept in the URL (?source=…) like the tags. */
+  readonly selectedSources = signal<string[]>([]);
   /** The search box; kept in the URL (?q=lime) like the tags. */
   readonly query = signal('');
 
-  /** With tags picked, recipes that have any of them; otherwise everything. */
+  readonly filtering = computed(() => this.selected().length > 0 || this.selectedSources().length > 0);
+
+  /**
+   * Recipes with any of the picked tags, and from any of the picked sources: "Chicken" and
+   * "NY Times" shows NY Times chicken recipes. Nothing picked in a group leaves it out.
+   */
   readonly filtered = computed(() => {
-    const picked = this.selected();
-    if (picked.length === 0) return this.recipes();
-    return this.recipes().filter((r) => r.tags?.some((t) => picked.includes(t)));
+    const tags = this.selected();
+    const sources = this.selectedSources();
+    return this.recipes().filter(
+      (r) =>
+        (tags.length === 0 || r.tags?.some((t) => tags.includes(t))) &&
+        (sources.length === 0 || (r.sourceId !== undefined && sources.includes(r.sourceId))),
+    );
   });
 
   /** Name matches, then ingredient matches, within the tag filter; null when not searching. */
@@ -156,6 +187,30 @@ export class RecipeList implements OnInit {
 
   /** Only tags some recipe has (plus any picked, so they can be unpicked); no "Pork 0". */
   readonly filterTags = computed(() => RECIPE_TAGS.filter((t) => this.tagCounts()[t] > 0 || this.isSelected(t)));
+
+  readonly sourceCounts = computed(() => {
+    const counts = new Map<string, number>();
+    for (const r of this.recipes()) if (r.sourceId) counts.set(r.sourceId, (counts.get(r.sourceId) ?? 0) + 1);
+    return counts;
+  });
+
+  /** Sources, after the tags, on the same rule: only those some recipe has, or that are picked. */
+  readonly filterSources = computed(() =>
+    this.sources.sources().filter((s) => this.sourceCounts().has(s.id) || this.isSourceSelected(s.id)),
+  );
+
+  sourceOf(recipe: Recipe) {
+    return recipe.sourceId ? this.sources.byId().get(recipe.sourceId) : undefined;
+  }
+
+  isSourceSelected(id: string): boolean {
+    return this.selectedSources().includes(id);
+  }
+
+  toggleSource(id: string): void {
+    this.selectedSources.update((ids) => (ids.includes(id) ? ids.filter((x) => x !== id) : [...ids, id]));
+    this.syncUrl();
+  }
 
   /** Recipes without a photo get a friendly emoji instead, varied by position. */
   emoji(index: number): string {
@@ -174,6 +229,7 @@ export class RecipeList implements OnInit {
 
   clearTags(): void {
     this.selected.set([]);
+    this.selectedSources.set([]);
     this.syncUrl();
   }
 
@@ -186,7 +242,7 @@ export class RecipeList implements OnInit {
     const q = this.query().trim();
     void this.router.navigate([], {
       relativeTo: this.route,
-      queryParams: { tag: this.selected(), q: q || null },
+      queryParams: { tag: this.selected(), source: this.selectedSources(), q: q || null },
       replaceUrl: true,
     });
   }
@@ -196,8 +252,10 @@ export class RecipeList implements OnInit {
     const fromUrl = params.getAll('tag');
     this.selected.set(RECIPE_TAGS.filter((t) => fromUrl.includes(t)));
     this.query.set(params.get('q') ?? '');
+    this.selectedSources.set(params.getAll('source'));
     try {
-      this.recipes.set(await firstValueFrom(this.service.list()));
+      const [recipes] = await Promise.all([firstValueFrom(this.service.list()), this.sources.load()]);
+      this.recipes.set(recipes);
     } catch (e) {
       this.error.set(errorMessage(e));
     } finally {

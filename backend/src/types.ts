@@ -22,9 +22,10 @@ export interface Step {
 export interface Recipe {
   id: string;
   title: string;
+  /** The web page it was imported from. */
   sourceUrl?: string;
-  /** Where it came from when that isn't a web page, such as a cookbook and page. */
-  source?: string;
+  /** The cook's own label for where it's from (a cookbook, "NY Times"); see sources.ts. */
+  sourceId?: string;
   image?: string;
   servings?: string;
   prepTime?: string;

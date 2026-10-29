@@ -6,8 +6,10 @@ import { extractRecipe, NoRecipeError } from './extract.ts';
 import { fetchPage, FetchError, UrlError } from './fetchPage.ts';
 import type { FetchedPage } from './fetchPage.ts';
 import { AuthError, createAuth, currentUser, RateLimitError } from './authRoutes.ts';
-import { UsernameTakenError } from './stores.ts';
+import { parseSourceInput } from './sources.ts';
+import { SourceNameTakenError, UsernameTakenError } from './stores.ts';
 import type { Stores } from './stores.ts';
+import type { RecipeDraft } from './types.ts';
 import { AttemptLimiter } from './rateLimit.ts';
 import { claudePhotoReader, draftFromReading, PhotoReadError } from './photoImport.ts';
 import type { PhotoReader, RecipePhoto } from './photoImport.ts';
@@ -54,7 +56,13 @@ export function createApp(stores: Stores, options: AppOptions = {}) {
   const getPage = options.fetchPage ?? fetchPage;
   const readPhotos = options.readPhotos === undefined ? claudePhotoReader() : options.readPhotos;
   const photoLimiter = new AttemptLimiter(PHOTO_IMPORTS_PER_DAY, 24 * 60 * 60 * 1000, options.now);
-  const { recipes: store } = stores;
+  const { recipes: store, sources } = stores;
+
+  /** A recipe may only point at one of its owner's own sources. */
+  const checkSource = async (userId: string, draft: RecipeDraft): Promise<RecipeDraft> => {
+    if (draft.sourceId && !(await sources.get(userId, draft.sourceId))) throw new ValidationError('That source no longer exists.');
+    return draft;
+  };
   const auth = createAuth(stores, { secureCookie: options.secureCookie, signupCode: options.signupCode, now: options.now });
   const app = express();
   if (options.trustProxy !== undefined) app.set('trust proxy', options.trustProxy);
@@ -85,7 +93,8 @@ export function createApp(stores: Stores, options: AppOptions = {}) {
 
   // A recipe written by hand in the editor.
   app.post('/api/recipes', async (req, res) => {
-    res.status(201).json(await store.create(currentUser(res).id, parseRecipeInput(req.body)));
+    const userId = currentUser(res).id;
+    res.status(201).json(await store.create(userId, await checkSource(userId, parseRecipeInput(req.body))));
   });
 
   // Declared before /api/recipes/:id so "import" isn't read as an id.
@@ -123,7 +132,8 @@ export function createApp(stores: Stores, options: AppOptions = {}) {
   });
 
   app.put('/api/recipes/:id', async (req, res) => {
-    const updated = await store.update(currentUser(res).id, req.params.id, parseRecipeInput(req.body));
+    const userId = currentUser(res).id;
+    const updated = await store.update(userId, req.params.id, await checkSource(userId, parseRecipeInput(req.body)));
     if (!updated) {
       res.status(404).json({ error: 'Recipe not found.' });
       return;
@@ -136,6 +146,37 @@ export function createApp(stores: Stores, options: AppOptions = {}) {
       res.status(404).json({ error: 'Recipe not found.' });
       return;
     }
+    res.status(204).end();
+  });
+
+  // Sources: the cook's own labels for where recipes come from (sources.ts).
+  app.use('/api/sources', auth.requireUser);
+
+  app.get('/api/sources', async (_req, res) => {
+    res.json(await sources.list(currentUser(res).id));
+  });
+
+  app.post('/api/sources', async (req, res) => {
+    res.status(201).json(await sources.create(currentUser(res).id, parseSourceInput(req.body)));
+  });
+
+  app.put('/api/sources/:id', async (req, res) => {
+    const updated = await sources.update(currentUser(res).id, req.params.id, parseSourceInput(req.body));
+    if (!updated) {
+      res.status(404).json({ error: 'Source not found.' });
+      return;
+    }
+    res.json(updated);
+  });
+
+  // Deleting a source takes it off its recipes; the recipes themselves stay.
+  app.delete('/api/sources/:id', async (req, res) => {
+    const userId = currentUser(res).id;
+    if (!(await sources.remove(userId, req.params.id))) {
+      res.status(404).json({ error: 'Source not found.' });
+      return;
+    }
+    await store.clearSource(userId, req.params.id);
     res.status(204).end();
   });
 
@@ -163,7 +204,7 @@ export function createApp(stores: Stores, options: AppOptions = {}) {
     } else if (err instanceof AuthError) {
       status = 401;
       message = err.message;
-    } else if (err instanceof UsernameTakenError) {
+    } else if (err instanceof UsernameTakenError || err instanceof SourceNameTakenError) {
       status = 409;
       message = err.message;
     } else if (err instanceof RateLimitError) {

@@ -2,8 +2,9 @@ import { randomUUID } from 'node:crypto';
 import { MongoClient } from 'mongodb';
 import type { Collection, Db } from 'mongodb';
 import type { Recipe, RecipeDraft } from './types.ts';
-import { foldStepNotes, UsernameTakenError } from './stores.ts';
-import type { RecipeStore, SessionRecord, SessionStore, Stores, Theme, User, UserStore } from './stores.ts';
+import type { Source, SourceIcon, SourceInput } from './sources.ts';
+import { fromStorage, SourceNameTakenError, UsernameTakenError } from './stores.ts';
+import type { RecipeStore, SessionRecord, SessionStore, SourceStore, Stores, Theme, User, UserStore } from './stores.ts';
 
 /**
  * MongoDB storage. Documents use our own UUID strings as `_id`, so ids look the
@@ -12,6 +13,7 @@ import type { RecipeStore, SessionRecord, SessionStore, Stores, Theme, User, Use
  *   users:    { _id, username, usernameLower (unique), passwordHash, createdAt }
  *   sessions: { _id: tokenHash, userId, expiresAt (TTL index) }
  *   recipes:  { _id, userId, ...recipe fields }
+ *   sources:  { _id, userId, name, nameLower (unique per user), icon }
  */
 
 interface UserDoc {
@@ -32,7 +34,17 @@ interface SessionDoc {
 
 type RecipeDoc = Omit<Recipe, 'id'> & { _id: string; userId: string };
 
-const OPTIONAL_FIELDS = ['sourceUrl', 'source', 'image', 'servings', 'prepTime', 'cookTime', 'totalTime', 'notes', 'tags'] as const;
+interface SourceDoc {
+  _id: string;
+  userId: string;
+  name: string;
+  nameLower: string;
+  icon: SourceIcon;
+}
+
+const toSource = (doc: SourceDoc): Source => ({ id: doc._id, name: doc.name, icon: doc.icon });
+
+const OPTIONAL_FIELDS = ['sourceUrl', 'sourceId', 'image', 'servings', 'prepTime', 'cookTime', 'totalTime', 'notes', 'tags'] as const;
 const DUPLICATE_KEY = 11000;
 
 const isDuplicateKey = (err: unknown) => (err as { code?: unknown })?.code === DUPLICATE_KEY;
@@ -44,7 +56,7 @@ function stripUndefined<T>(value: T): T {
 
 function toRecipe(doc: RecipeDoc): Recipe {
   const { _id, userId: _userId, ...rest } = doc;
-  return foldStepNotes({ id: _id, ...rest });
+  return fromStorage({ id: _id, ...rest });
 }
 
 class MongoUserStore implements UserStore {
@@ -151,20 +163,21 @@ class MongoRecipeStore implements RecipeStore {
 
   async update(userId: string, id: string, draft: RecipeDraft): Promise<Recipe | undefined> {
     const clean = stripUndefined(draft);
+    // An older recipe may still have free-text source (see foldSourceText), already read into its notes.
+    const unset: Record<string, ''> = { source: '' };
     const set: Record<string, unknown> = {
       title: clean.title,
       ingredients: clean.ingredients,
       steps: clean.steps,
       updatedAt: new Date().toISOString(),
     };
-    const unset: Record<string, ''> = {};
     for (const field of OPTIONAL_FIELDS) {
       if (clean[field] === undefined) unset[field] = '';
       else set[field] = clean[field];
     }
     const result = await this.col.findOneAndUpdate(
       { _id: id, userId },
-      Object.keys(unset).length > 0 ? { $set: set, $unset: unset } : { $set: set },
+      { $set: set, $unset: unset },
       { returnDocument: 'after' },
     );
     return result ? toRecipe(result) : undefined;
@@ -185,6 +198,58 @@ class MongoRecipeStore implements RecipeStore {
       throw err;
     }
   }
+
+  async clearSource(userId: string, sourceId: string): Promise<void> {
+    await this.col.updateMany({ userId, sourceId }, { $unset: { sourceId: '' } });
+  }
+}
+
+class MongoSourceStore implements SourceStore {
+  private readonly col: Collection<SourceDoc>;
+
+  constructor(col: Collection<SourceDoc>) {
+    this.col = col;
+  }
+
+  async list(userId: string): Promise<Source[]> {
+    const docs = await this.col.find({ userId }).sort({ nameLower: 1 }).toArray();
+    return docs.map(toSource);
+  }
+
+  async get(userId: string, id: string): Promise<Source | undefined> {
+    const doc = await this.col.findOne({ _id: id, userId });
+    return doc ? toSource(doc) : undefined;
+  }
+
+  async create(userId: string, input: SourceInput): Promise<Source> {
+    const doc: SourceDoc = { _id: randomUUID(), userId, name: input.name, nameLower: input.name.toLowerCase(), icon: input.icon };
+    try {
+      await this.col.insertOne(doc);
+    } catch (err) {
+      if (isDuplicateKey(err)) throw new SourceNameTakenError();
+      throw err;
+    }
+    return toSource(doc);
+  }
+
+  async update(userId: string, id: string, input: SourceInput): Promise<Source | undefined> {
+    try {
+      const doc = await this.col.findOneAndUpdate(
+        { _id: id, userId },
+        { $set: { name: input.name, nameLower: input.name.toLowerCase(), icon: input.icon } },
+        { returnDocument: 'after' },
+      );
+      return doc ? toSource(doc) : undefined;
+    } catch (err) {
+      if (isDuplicateKey(err)) throw new SourceNameTakenError();
+      throw err;
+    }
+  }
+
+  async remove(userId: string, id: string): Promise<boolean> {
+    const result = await this.col.deleteOne({ _id: id, userId });
+    return result.deletedCount === 1;
+  }
 }
 
 export interface MongoHandle {
@@ -202,14 +267,21 @@ export async function connectMongo(uri: string, dbName: string): Promise<MongoHa
     const users = db.collection<UserDoc>('users');
     const sessions = db.collection<SessionDoc>('sessions');
     const recipes = db.collection<RecipeDoc>('recipes');
+    const sources = db.collection<SourceDoc>('sources');
     await Promise.all([
       users.createIndex({ usernameLower: 1 }, { unique: true }),
       // Mongo deletes sessions shortly after expiresAt passes; the app also checks the date itself.
       sessions.createIndex({ expiresAt: 1 }, { expireAfterSeconds: 0 }),
       recipes.createIndex({ userId: 1, createdAt: -1 }),
+      sources.createIndex({ userId: 1, nameLower: 1 }, { unique: true }),
     ]);
     return {
-      stores: { users: new MongoUserStore(users), sessions: new MongoSessionStore(sessions), recipes: new MongoRecipeStore(recipes) },
+      stores: {
+        users: new MongoUserStore(users),
+        sessions: new MongoSessionStore(sessions),
+        recipes: new MongoRecipeStore(recipes),
+        sources: new MongoSourceStore(sources),
+      },
       db,
       close: () => client.close(),
     };

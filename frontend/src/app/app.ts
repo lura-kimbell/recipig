@@ -2,6 +2,7 @@ import { Component, ElementRef, effect, inject, signal, viewChild } from '@angul
 import { Router, RouterLink, RouterOutlet } from '@angular/router';
 import { AuthService } from './auth.service';
 import { ImportDialog } from './import-dialog';
+import { SourcesDialog } from './sources-dialog';
 import { PhotoImportDialog } from './photo-import-dialog';
 import { ThemePicker } from './theme-picker';
 import { ThemeService, isThemeId } from './theme.service';
@@ -10,7 +11,7 @@ type MenuName = 'new' | 'user';
 
 @Component({
   selector: 'app-root',
-  imports: [RouterOutlet, RouterLink, ThemePicker, ImportDialog, PhotoImportDialog],
+  imports: [RouterOutlet, RouterLink, ThemePicker, ImportDialog, PhotoImportDialog, SourcesDialog],
   host: {
     '(document:click)': 'onDocumentClick($event)',
     '(document:keydown.escape)': 'closeMenu(true)',
@@ -59,6 +60,7 @@ type MenuName = 'new' | 'user';
               @if (openMenu() === 'user') {
                 <ul id="user-menu" class="menu">
                   <li><button type="button" (click)="openThemePicker()">Change theme</button></li>
+                  <li><button type="button" (click)="openSources()">Sources</button></li>
                   <li role="separator"><hr /></li>
                   <li><button type="button" (click)="logout()">Log out</button></li>
                 </ul>
@@ -79,6 +81,7 @@ type MenuName = 'new' | 'user';
     <app-theme-picker />
     <app-import-dialog />
     <app-photo-import-dialog />
+    <app-sources-dialog />
   `,
 })
 export class App {
@@ -91,6 +94,7 @@ export class App {
   private readonly themePicker = viewChild.required(ThemePicker);
   private readonly importDialog = viewChild.required(ImportDialog);
   private readonly photoImportDialog = viewChild.required(PhotoImportDialog);
+  private readonly sourcesDialog = viewChild.required(SourcesDialog);
 
   readonly openMenu = signal<MenuName | null>(null);
 
@@ -123,6 +127,11 @@ export class App {
   openPhotoImport(): void {
     this.closeMenu();
     this.photoImportDialog().open();
+  }
+
+  openSources(): void {
+    this.closeMenu();
+    this.sourcesDialog().open();
   }
 
   openThemePicker(): void {

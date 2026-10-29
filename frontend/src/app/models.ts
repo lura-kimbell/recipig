@@ -3,6 +3,46 @@ export const RECIPE_TAGS = ['Chicken', 'Beef', 'Pork', 'Fish', 'Vegetarian'] as 
 
 export type RecipeTag = (typeof RECIPE_TAGS)[number];
 
+/**
+ * Icons a source can have, in the order the picker shows them: MingCute line icons in
+ * public/source-icons, by file name. Must match SOURCE_ICONS in backend/src/sources.ts.
+ */
+export const SOURCE_ICONS = [
+  { id: 'book', label: 'Book' },
+  { id: 'notebook', label: 'Notebook' },
+  { id: 'news', label: 'Newspaper' },
+  { id: 'globe', label: 'Website' },
+  { id: 'chef-hat', label: 'Chef' },
+  { id: 'tv', label: 'TV' },
+  { id: 'video', label: 'Video' },
+  { id: 'youtube', label: 'YouTube' },
+  { id: 'instagram', label: 'Instagram' },
+  { id: 'tiktok', label: 'TikTok' },
+  { id: 'pinterest', label: 'Pinterest' },
+  { id: 'mail', label: 'Newsletter' },
+  { id: 'home', label: 'Home' },
+  { id: 'group', label: 'Family' },
+  { id: 'user-heart', label: 'Friend' },
+  { id: 'pen', label: 'Handwritten' },
+  { id: 'heart', label: 'Heart' },
+  { id: 'star', label: 'Star' },
+  { id: 'bookmark', label: 'Bookmark' },
+  { id: 'fork-knife', label: 'Restaurant' },
+  { id: 'store', label: 'Shop' },
+  { id: 'pot', label: 'Pot' },
+  { id: 'cake', label: 'Cake' },
+  { id: 'leaf', label: 'Leaf' },
+] as const;
+
+export type SourceIcon = (typeof SOURCE_ICONS)[number]['id'];
+
+/** Where recipes come from (a cookbook, "NY Times"), set up once and given to many recipes. */
+export interface Source {
+  id: string;
+  name: string;
+  icon: SourceIcon;
+}
+
 export interface Ingredient {
   id: string;
   text: string;
@@ -24,9 +64,10 @@ export interface Step {
 export interface Recipe {
   id: string;
   title: string;
+  /** The web page it was imported from. */
   sourceUrl?: string;
-  /** Where it came from when that isn't a web page, such as a cookbook and page. */
-  source?: string;
+  /** One of the cook's sources (see Source); omitted when it has none. */
+  sourceId?: string;
   image?: string;
   servings?: string;
   prepTime?: string;

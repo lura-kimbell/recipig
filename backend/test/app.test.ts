@@ -354,3 +354,35 @@ test('photo import is limited per person per day, and off without a reader', asy
     assert.match(off.json.error, /isn't set up/);
   });
 });
+
+test('sources: create, rename, give to a recipe, filter out strangers, delete', async () => {
+  await withServer(okPage, async (call, newClient) => {
+    const book = await call('POST', '/api/sources', { name: 'The Roasting Tin', icon: 'book' });
+    assert.equal(book.status, 201);
+    assert.equal((await call('POST', '/api/sources', { name: 'the roasting tin', icon: 'book' })).status, 409);
+    assert.equal((await call('POST', '/api/sources', { name: 'X', icon: 'rocket' })).status, 400);
+
+    const recipe = (await call('POST', '/api/recipes', { title: 'Traybake', sourceId: book.json.id, ingredients: [], steps: [] })).json;
+    assert.equal(recipe.sourceId, book.json.id);
+    assert.equal((await call('POST', '/api/recipes', { title: 'T', sourceId: 'nope', ingredients: [], steps: [] })).status, 400);
+
+    // Someone else can't see, use, change or delete it.
+    const bob = newClient();
+    await bob('POST', '/api/auth/register', { username: 'bob', password: 'pw' });
+    assert.deepEqual((await bob('GET', '/api/sources')).json, []);
+    assert.equal((await bob('POST', '/api/recipes', { title: 'T', sourceId: book.json.id, ingredients: [], steps: [] })).status, 400);
+    assert.equal((await bob('PUT', `/api/sources/${book.json.id}`, { name: 'Mine', icon: 'book' })).status, 404);
+    assert.equal((await bob('DELETE', `/api/sources/${book.json.id}`)).status, 404);
+    assert.equal((await newClient()('GET', '/api/sources')).status, 401);
+
+    const renamed = await call('PUT', `/api/sources/${book.json.id}`, { name: 'Roasting Tin', icon: 'chef-hat' });
+    assert.deepEqual(renamed.json, { id: book.json.id, name: 'Roasting Tin', icon: 'chef-hat' });
+    assert.deepEqual((await call('GET', '/api/sources')).json, [renamed.json]);
+
+    assert.equal((await call('DELETE', `/api/sources/${book.json.id}`)).status, 204);
+    assert.deepEqual((await call('GET', '/api/sources')).json, []);
+    const after = (await call('GET', `/api/recipes/${recipe.id}`)).json;
+    assert.equal(after.title, 'Traybake');
+    assert.equal(after.sourceId, undefined);
+  });
+});

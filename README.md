@@ -8,9 +8,10 @@ A personal recipe app. Paste a link to a recipe and Recipig saves just the recip
 - **New Recipe menu.** The button in the header offers **From Scratch** (the edit form, empty) and **From URL** (a dialog where you paste a recipe link).
 - **Import from a URL.** Reads the recipe data that sites publish for search engines (schema.org JSON-LD, then microdata). If a page has none, or only a stub, it reads the lists under the page's "Ingredients" and "Directions" headings instead. You get the title, times, ingredients and steps only.
 - **Import from photos.** New Recipe → From Photos: take or choose photos of a recipe in a cookbook (one per page if it runs over several, up to 6), put them in page order, and Claude reads them into the editor, with the same tag guessing and step links as a URL import. Check the result against the book, then save. Photos are shrunk in the browser before upload and aren't kept. Needs `ANTHROPIC_API_KEY`; each import is one paid Claude API call, and each account can do 30 a day.
+- **Sources.** Label recipes with where they come from: a cookbook you photographed, a site such as NY Times, a person. Set them up under your account menu → Sources (a name and an icon from a set that matches the tag icons), or with "+ New source" in the editor, and pick one per recipe. The icon shows on recipe cards after the tag icons, the recipe page shows the source beside the tags, and the recipe list can be filtered by source. Deleting a source keeps its recipes.
 - **Saved recipes.** Imported recipes are stored and listed so you can come back to them.
 - **Sections.** Ingredients and steps can be grouped under labels such as "Brine" or "Sauce". Imports keep the page's labels; in the editor, type a label in an item's Section box (items with the same label are grouped).
-- **Edit.** Change the title, source, image, times, ingredients, steps and sections; add, remove and reorder ingredients and steps. The image is a link to a picture (paste any image address; clear the box to remove it), for imported and hand-made recipes alike. The Source box takes a link (shown on the recipe page as a link to the site) or any text, such as the cookbook and page a photographed recipe came from. In each step's "Ingredients shown with this step" list, an ingredient's section appears as a small tag beside its name.
+- **Edit.** Change the title, source, link, image, times, ingredients, steps and sections; add, remove and reorder ingredients and steps. The image is a link to a picture (paste any image address; clear the box to remove it), for imported and hand-made recipes alike. The Link is the page a recipe was imported from. In each step's "Ingredients shown with this step" list, an ingredient's section appears as a small tag beside its name.
 - **Batch size.** Buttons at the top of a recipe (0.5x, 1x, 2x, 3x, 4x) scale every ingredient amount (halving gives fractions: 1 egg becomes 1/2 egg, 2 cups becomes 1 cup), both in the ingredient list and in each step's ingredient reminder. Fractions stay fractions (3/4 cup doubled is 1 1/2 cups) and units follow along (1 cup becomes 2 cups, 1 egg becomes 2 eggs). Servings scale too. Your saved recipe is never changed.
 - **Tags.** Recipes can be tagged by main ingredient: Chicken, Beef, Pork, Fish or Vegetarian. Imports guess the tags from the title and ingredients; change them in the editor. The recipe list can be filtered by tag, cards show the tag icons, and the recipe page shows the tags beside the times.
 - **Nutrition estimate.** The recipe page estimates calories, protein, carbohydrates (fiber, sugar), fat and sodium from the ingredient list, per serving and for the whole batch (it follows the batch size). Lines without an amount, or with a food that isn't in the built-in table, are listed as not counted.
@@ -63,7 +64,7 @@ Settings (environment variables for the backend):
 | `SIGNUP_CODE` | none | When set, creating an account needs this invite code (the sign-up form asks for it). Leave unset to let anyone sign up |
 | `ANTHROPIC_API_KEY` | none | Claude API key for importing from photos (create one at https://platform.claude.com). Without it, From Photos says it isn't set up |
 
-Collections: `users`, `sessions` and `recipes`; the indexes are created on startup.
+Collections: `users`, `sessions`, `recipes` and `sources`; the indexes are created on startup.
 
 ## Hosting on Render
 
@@ -126,10 +127,12 @@ backend/    Express + TypeScript API
   src/mongoStores.ts  MongoDB implementation (memoryStores.ts is the test stand-in)
   src/authRoutes.ts   register, login, logout, session lookup
   src/tags.ts       main-ingredient tags and import-time guessing
+  src/sources.ts    recipe sources (cookbooks, sites) and their icons
   scripts/importJson.ts  move an old recipes.json into an account
 frontend/   Angular app (standalone components, signals)
   src/app/nutrition.ts, nutrition-data.ts  nutrition estimate and food table
   public/tag-icons/  tag icons (MingCute, Apache 2.0)
+  public/source-icons/  icons to pick for a source (MingCute, Apache 2.0)
 render.yaml  Render Blueprint for hosting
 ```
 

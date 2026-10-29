@@ -3,6 +3,7 @@ import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { Ingredient, Recipe, Step, groupBySection } from './models';
 import { RecipeService, errorMessage, hostOf } from './recipe.service';
+import { SourceService, sourceIconUrl } from './source.service';
 import { NUTRIENT_KEYS, estimateNutrition, scaleNutrients, servingCount } from './nutrition';
 import { FOODS } from './nutrition-data';
 import { scaleIngredientText } from './scale';
@@ -47,6 +48,11 @@ import { scaleIngredientText } from './scale';
         @for (tag of r.tags ?? []; track tag) {
           <li class="tag-pill" [attr.data-tag]="tag"><span class="tag-icon" aria-hidden="true"></span>{{ tag }}</li>
         }
+        @if (source(); as s) {
+          <li class="tag-pill source-pill" [style.--tag-icon]="iconUrl(s.icon)" title="Source">
+            <span class="tag-icon" aria-hidden="true"></span>{{ s.name }}
+          </li>
+        }
       </ul>
 
       @if (r.sourceUrl) {
@@ -54,8 +60,6 @@ import { scaleIngredientText } from './scale';
           Source:
           <a [href]="r.sourceUrl" target="_blank" rel="noopener noreferrer">{{ host(r.sourceUrl) || r.sourceUrl }}</a>
         </p>
-      } @else if (r.source) {
-        <p class="muted small">Source: {{ r.source }}</p>
       }
 
       @if (r.notes?.trim(); as notes) {
@@ -214,6 +218,13 @@ export class RecipeDetail implements OnInit {
   readonly open = signal<ReadonlySet<string>>(new Set());
 
   readonly host = hostOf;
+  readonly iconUrl = sourceIconUrl;
+  private readonly sources = inject(SourceService);
+  /** The recipe's source, once the sources have loaded. */
+  readonly source = computed(() => {
+    const id = this.recipe()?.sourceId;
+    return id ? this.sources.byId().get(id) : undefined;
+  });
 
   /** Batch sizes offered; the recipe as written is 1x. */
   readonly multipliers = [0.5, 1, 2, 3, 4] as const;

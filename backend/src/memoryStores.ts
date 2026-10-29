@@ -1,7 +1,8 @@
 import { randomUUID } from 'node:crypto';
 import type { Recipe, RecipeDraft } from './types.ts';
-import { foldStepNotes, UsernameTakenError } from './stores.ts';
-import type { RecipeStore, SessionRecord, SessionStore, Stores, Theme, User, UserStore } from './stores.ts';
+import type { Source, SourceInput } from './sources.ts';
+import { fromStorage, SourceNameTakenError, UsernameTakenError } from './stores.ts';
+import type { RecipeStore, SessionRecord, SessionStore, SourceStore, Stores, Theme, User, UserStore } from './stores.ts';
 
 /** In-memory stand-ins for the Mongo stores. Used by the tests; nothing is saved to disk. */
 
@@ -63,13 +64,13 @@ class MemoryRecipeStore implements RecipeStore {
   async list(userId: string): Promise<Recipe[]> {
     return this.rows
       .filter((r) => r.userId === userId)
-      .map((r) => foldStepNotes(structuredClone(r.recipe)))
+      .map((r) => fromStorage(structuredClone(r.recipe)))
       .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   }
 
   async get(userId: string, id: string): Promise<Recipe | undefined> {
     const row = this.rows.find((r) => r.userId === userId && r.recipe.id === id);
-    return row && foldStepNotes(structuredClone(row.recipe));
+    return row && fromStorage(structuredClone(row.recipe));
   }
 
   async create(userId: string, draft: RecipeDraft): Promise<Recipe> {
@@ -98,8 +99,60 @@ class MemoryRecipeStore implements RecipeStore {
     this.rows.push({ userId, recipe: structuredClone(recipe) });
     return true;
   }
+
+  async clearSource(userId: string, sourceId: string): Promise<void> {
+    for (const row of this.rows) if (row.userId === userId && row.recipe.sourceId === sourceId) delete row.recipe.sourceId;
+  }
+}
+
+class MemorySourceStore implements SourceStore {
+  private readonly rows: { userId: string; source: Source }[] = [];
+
+  private nameTaken(userId: string, name: string, exceptId?: string): boolean {
+    const lower = name.toLowerCase();
+    return this.rows.some((r) => r.userId === userId && r.source.id !== exceptId && r.source.name.toLowerCase() === lower);
+  }
+
+  async list(userId: string): Promise<Source[]> {
+    return this.rows
+      .filter((r) => r.userId === userId)
+      .map((r) => ({ ...r.source }))
+      .sort((a, b) => (a.name.toLowerCase() < b.name.toLowerCase() ? -1 : 1));
+  }
+
+  async get(userId: string, id: string): Promise<Source | undefined> {
+    const row = this.rows.find((r) => r.userId === userId && r.source.id === id);
+    return row && { ...row.source };
+  }
+
+  async create(userId: string, input: SourceInput): Promise<Source> {
+    if (this.nameTaken(userId, input.name)) throw new SourceNameTakenError();
+    const source = { id: randomUUID(), name: input.name, icon: input.icon };
+    this.rows.push({ userId, source });
+    return { ...source };
+  }
+
+  async update(userId: string, id: string, input: SourceInput): Promise<Source | undefined> {
+    const row = this.rows.find((r) => r.userId === userId && r.source.id === id);
+    if (!row) return undefined;
+    if (this.nameTaken(userId, input.name, id)) throw new SourceNameTakenError();
+    row.source = { id, name: input.name, icon: input.icon };
+    return { ...row.source };
+  }
+
+  async remove(userId: string, id: string): Promise<boolean> {
+    const index = this.rows.findIndex((r) => r.userId === userId && r.source.id === id);
+    if (index === -1) return false;
+    this.rows.splice(index, 1);
+    return true;
+  }
 }
 
 export function createMemoryStores(): Stores {
-  return { users: new MemoryUserStore(), sessions: new MemorySessionStore(), recipes: new MemoryRecipeStore() };
+  return {
+    users: new MemoryUserStore(),
+    sessions: new MemorySessionStore(),
+    recipes: new MemoryRecipeStore(),
+    sources: new MemorySourceStore(),
+  };
 }
