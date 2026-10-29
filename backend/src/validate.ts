@@ -94,6 +94,7 @@ export function parseRecipeInput(body: unknown): RecipeDraft {
   return {
     title,
     sourceUrl: optionalHttpUrl(body.sourceUrl, 'sourceUrl'),
+    source: optionalString(body.source, 300, 'source'),
     image: optionalHttpUrl(body.image, 'image'),
     servings: optionalString(body.servings, 200, 'servings'),
     prepTime: optionalString(body.prepTime, 200, 'prepTime'),

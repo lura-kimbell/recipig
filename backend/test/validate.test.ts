@@ -46,6 +46,13 @@ test('only accepts http(s) URLs for the source and image', () => {
   assert.equal(r.sourceUrl, 'https://example.com/r');
 });
 
+test('keeps a written source such as a cookbook, trimmed', () => {
+  const r = parseRecipeInput({ title: 'T', source: '  Simple by Ottolenghi, p. 112 ' });
+  assert.equal(r.source, 'Simple by Ottolenghi, p. 112');
+  assert.equal(parseRecipeInput({ title: 'T', source: ' ' }).source, undefined);
+  assert.throws(() => parseRecipeInput({ title: 'T', source: 'x'.repeat(301) }), ValidationError);
+});
+
 test('turns empty optional fields into undefined', () => {
   const r = parseRecipeInput({ title: 'T', servings: '  ', prepTime: '10 min' });
   assert.equal(r.servings, undefined);

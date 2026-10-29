@@ -54,6 +54,8 @@ import { scaleIngredientText } from './scale';
           Source:
           <a [href]="r.sourceUrl" target="_blank" rel="noopener noreferrer">{{ host(r.sourceUrl) || r.sourceUrl }}</a>
         </p>
+      } @else if (r.source) {
+        <p class="muted small">Source: {{ r.source }}</p>
       }
 
       @if (r.notes?.trim(); as notes) {

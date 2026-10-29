@@ -23,6 +23,8 @@ export interface Recipe {
   id: string;
   title: string;
   sourceUrl?: string;
+  /** Where it came from when that isn't a web page, such as a cookbook and page. */
+  source?: string;
   image?: string;
   servings?: string;
   prepTime?: string;
