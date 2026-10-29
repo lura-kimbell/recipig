@@ -1,8 +1,9 @@
 import { randomUUID } from 'node:crypto';
 import type { Recipe, RecipeDraft } from './types.ts';
+import type { StoredImage } from './images.ts';
 import type { Source, SourceInput } from './sources.ts';
 import { fromStorage, SourceNameTakenError, UsernameTakenError } from './stores.ts';
-import type { RecipeStore, SessionRecord, SessionStore, SourceStore, Stores, Theme, User, UserStore } from './stores.ts';
+import type { ImageStore, RecipeStore, SessionRecord, SessionStore, SourceStore, Stores, Theme, User, UserStore } from './stores.ts';
 
 /** In-memory stand-ins for the Mongo stores. Used by the tests; nothing is saved to disk. */
 
@@ -148,11 +149,40 @@ class MemorySourceStore implements SourceStore {
   }
 }
 
+class MemoryImageStore implements ImageStore {
+  private readonly rows: { id: string; userId: string; image: StoredImage; createdAt: Date }[] = [];
+
+  async create(userId: string, image: StoredImage): Promise<string> {
+    const id = randomUUID();
+    this.rows.push({ id, userId, image: { contentType: image.contentType, data: Buffer.from(image.data) }, createdAt: new Date() });
+    return id;
+  }
+
+  async get(userId: string, id: string): Promise<StoredImage | undefined> {
+    const row = this.rows.find((r) => r.userId === userId && r.id === id);
+    return row && { contentType: row.image.contentType, data: Buffer.from(row.image.data) };
+  }
+
+  async remove(userId: string, id: string): Promise<boolean> {
+    const index = this.rows.findIndex((r) => r.userId === userId && r.id === id);
+    if (index === -1) return false;
+    this.rows.splice(index, 1);
+    return true;
+  }
+
+  async sweep(userId: string, keep: ReadonlySet<string>, before: Date): Promise<number> {
+    const doomed = this.rows.filter((r) => r.userId === userId && !keep.has(r.id) && r.createdAt < before);
+    for (const row of doomed) this.rows.splice(this.rows.indexOf(row), 1);
+    return doomed.length;
+  }
+}
+
 export function createMemoryStores(): Stores {
   return {
     users: new MemoryUserStore(),
     sessions: new MemorySessionStore(),
     recipes: new MemoryRecipeStore(),
     sources: new MemorySourceStore(),
+    images: new MemoryImageStore(),
   };
 }

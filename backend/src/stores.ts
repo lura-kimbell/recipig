@@ -1,3 +1,4 @@
+import type { StoredImage } from './images.ts';
 import type { Source, SourceInput } from './sources.ts';
 import type { Recipe, RecipeDraft } from './types.ts';
 
@@ -146,4 +147,15 @@ export interface Stores {
   sessions: SessionStore;
   recipes: RecipeStore;
   sources: SourceStore;
+  images: ImageStore;
+}
+
+/** Photos uploaded for recipes (images.ts), one user's at a time. */
+export interface ImageStore {
+  /** Returns the new image's id. */
+  create(userId: string, image: StoredImage): Promise<string>;
+  get(userId: string, id: string): Promise<StoredImage | undefined>;
+  remove(userId: string, id: string): Promise<boolean>;
+  /** Delete the user's images uploaded before `before` other than those in `keep`; returns how many went. */
+  sweep(userId: string, keep: ReadonlySet<string>, before: Date): Promise<number>;
 }

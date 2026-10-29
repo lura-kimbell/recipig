@@ -60,6 +60,13 @@ test('source names are tidied, and need a known icon', () => {
   assert.throws(() => parseSourceInput({ name: 'NY Times', icon: 'rocket' }), ValidationError);
 });
 
+test('an image is a web link or an uploaded photo of this app', () => {
+  const id = '0f8fad5b-d9cb-469f-a165-70867728950e';
+  assert.equal(parseRecipeInput({ title: 'T', image: `/api/images/${id}` }).image, `/api/images/${id}`);
+  assert.throws(() => parseRecipeInput({ title: 'T', image: '/api/images/nope' }), ValidationError);
+  assert.throws(() => parseRecipeInput({ title: 'T', image: '/etc/passwd' }), ValidationError);
+});
+
 test('turns empty optional fields into undefined', () => {
   const r = parseRecipeInput({ title: 'T', servings: '  ', prepTime: '10 min' });
   assert.equal(r.servings, undefined);

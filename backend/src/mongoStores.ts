@@ -1,10 +1,11 @@
 import { randomUUID } from 'node:crypto';
-import { MongoClient } from 'mongodb';
+import { Binary, MongoClient } from 'mongodb';
 import type { Collection, Db } from 'mongodb';
+import type { StoredImage, UploadType } from './images.ts';
 import type { Recipe, RecipeDraft } from './types.ts';
 import type { Source, SourceIcon, SourceInput } from './sources.ts';
 import { fromStorage, SourceNameTakenError, UsernameTakenError } from './stores.ts';
-import type { RecipeStore, SessionRecord, SessionStore, SourceStore, Stores, Theme, User, UserStore } from './stores.ts';
+import type { ImageStore, RecipeStore, SessionRecord, SessionStore, SourceStore, Stores, Theme, User, UserStore } from './stores.ts';
 
 /**
  * MongoDB storage. Documents use our own UUID strings as `_id`, so ids look the
@@ -14,6 +15,7 @@ import type { RecipeStore, SessionRecord, SessionStore, SourceStore, Stores, The
  *   sessions: { _id: tokenHash, userId, expiresAt (TTL index) }
  *   recipes:  { _id, userId, ...recipe fields }
  *   sources:  { _id, userId, name, nameLower (unique per user), icon }
+ *   images:   { _id, userId, contentType, data (binary), createdAt }
  */
 
 interface UserDoc {
@@ -43,6 +45,14 @@ interface SourceDoc {
 }
 
 const toSource = (doc: SourceDoc): Source => ({ id: doc._id, name: doc.name, icon: doc.icon });
+
+interface ImageDoc {
+  _id: string;
+  userId: string;
+  contentType: UploadType;
+  data: Binary;
+  createdAt: Date;
+}
 
 const OPTIONAL_FIELDS = ['sourceUrl', 'sourceId', 'image', 'servings', 'prepTime', 'cookTime', 'totalTime', 'notes', 'tags'] as const;
 const DUPLICATE_KEY = 11000;
@@ -252,6 +262,35 @@ class MongoSourceStore implements SourceStore {
   }
 }
 
+class MongoImageStore implements ImageStore {
+  private readonly col: Collection<ImageDoc>;
+
+  constructor(col: Collection<ImageDoc>) {
+    this.col = col;
+  }
+
+  async create(userId: string, image: StoredImage): Promise<string> {
+    const id = randomUUID();
+    await this.col.insertOne({ _id: id, userId, contentType: image.contentType, data: new Binary(image.data), createdAt: new Date() });
+    return id;
+  }
+
+  async get(userId: string, id: string): Promise<StoredImage | undefined> {
+    const doc = await this.col.findOne({ _id: id, userId });
+    return doc ? { contentType: doc.contentType, data: Buffer.from(doc.data.buffer) } : undefined;
+  }
+
+  async remove(userId: string, id: string): Promise<boolean> {
+    const result = await this.col.deleteOne({ _id: id, userId });
+    return result.deletedCount === 1;
+  }
+
+  async sweep(userId: string, keep: ReadonlySet<string>, before: Date): Promise<number> {
+    const result = await this.col.deleteMany({ userId, _id: { $nin: [...keep] }, createdAt: { $lt: before } });
+    return result.deletedCount;
+  }
+}
+
 export interface MongoHandle {
   stores: Stores;
   db: Db;
@@ -268,12 +307,14 @@ export async function connectMongo(uri: string, dbName: string): Promise<MongoHa
     const sessions = db.collection<SessionDoc>('sessions');
     const recipes = db.collection<RecipeDoc>('recipes');
     const sources = db.collection<SourceDoc>('sources');
+    const images = db.collection<ImageDoc>('images');
     await Promise.all([
       users.createIndex({ usernameLower: 1 }, { unique: true }),
       // Mongo deletes sessions shortly after expiresAt passes; the app also checks the date itself.
       sessions.createIndex({ expiresAt: 1 }, { expireAfterSeconds: 0 }),
       recipes.createIndex({ userId: 1, createdAt: -1 }),
       sources.createIndex({ userId: 1, nameLower: 1 }, { unique: true }),
+      images.createIndex({ userId: 1, createdAt: 1 }),
     ]);
     return {
       stores: {
@@ -281,6 +322,7 @@ export async function connectMongo(uri: string, dbName: string): Promise<MongoHa
         sessions: new MongoSessionStore(sessions),
         recipes: new MongoRecipeStore(recipes),
         sources: new MongoSourceStore(sources),
+        images: new MongoImageStore(images),
       },
       db,
       close: () => client.close(),

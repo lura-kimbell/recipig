@@ -3,9 +3,13 @@ import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { RECIPE_TAGS, Recipe, RecipeTag, Step } from './models';
-import { RecipeService, errorMessage, newId } from './recipe.service';
+import { shrinkPhoto } from './image-resize';
+import { RecipeService, errorMessage, isUploadedImage, newId } from './recipe.service';
 import { SourceService } from './source.service';
 import { SourcesDialog } from './sources-dialog';
+
+/** Long edge of an uploaded recipe photo: sharp across the recipe page, a few hundred KB. */
+const PHOTO_EDGE = 1600;
 
 const blank = (): Recipe => ({
   id: '',
@@ -63,10 +67,27 @@ const blank = (): Recipe => ({
           <span>Link <span class="muted small">(the page it came from)</span></span>
           <input type="url" placeholder="https://example.com/best-pancakes" [(ngModel)]="draft.sourceUrl" />
         </label>
-        <label class="field">
-          <span>Image link</span>
-          <input type="url" placeholder="https://example.com/photo.jpg" [(ngModel)]="draft.image" />
-        </label>
+        <div class="field" role="group" aria-labelledby="photo-label">
+          <span id="photo-label">Photo</span>
+          <div class="row photo-actions">
+            <input #photoInput type="file" accept="image/*" class="visually-hidden" tabindex="-1" (change)="uploadPhoto($event)" />
+            <button type="button" class="btn small" (click)="photoInput.click()" [disabled]="uploading()">
+              {{ uploading() ? 'Uploading…' : draft.image ? 'Change photo' : 'Upload photo' }}
+            </button>
+            @if (draft.image && !uploading()) {
+              <button type="button" class="btn small ghost" (click)="draft.image = undefined">Remove photo</button>
+            }
+          </div>
+          @if (uploadError()) {
+            <p class="error" role="alert">{{ uploadError() }}</p>
+          }
+        </div>
+        @if (!isUploaded()) {
+          <label class="field">
+            <span>Or an image link</span>
+            <input type="url" placeholder="https://example.com/photo.jpg" [(ngModel)]="draft.image" />
+          </label>
+        }
         @if (imagePreview(); as src) {
           <img class="hero edit-preview" [src]="src" alt="Preview of the recipe image" referrerpolicy="no-referrer" />
         }
@@ -254,6 +275,8 @@ export class RecipeEdit implements OnInit {
   readonly loadError = signal('');
   readonly saving = signal(false);
   readonly saveError = signal('');
+  readonly uploading = signal(false);
+  readonly uploadError = signal('');
   /** Where Cancel goes: the recipe being edited, or the list when creating. */
   readonly cancelLink = signal<string[]>(['/']);
   /** Section names already used in this recipe, offered as suggestions. */
@@ -339,10 +362,39 @@ export class RecipeEdit implements OnInit {
     [list[index], list[target]] = [list[target], list[index]];
   }
 
-  /** The typed link, if it looks like a web address worth previewing. */
+  /** The photo to preview: an uploaded one, or a typed link that looks like a web address. */
   imagePreview(): string {
     const value = this.draft.image?.trim() ?? '';
-    return /^https?:\/\//i.test(value) ? value : '';
+    return /^https?:\/\//i.test(value) || isUploadedImage(value) ? value : '';
+  }
+
+  /** The photo was uploaded from this device, so there's no link to show or edit. */
+  isUploaded(): boolean {
+    return isUploadedImage(this.draft.image);
+  }
+
+  /** Shrink the chosen photo on the device, upload it, and make it the recipe's photo (saved with the recipe). */
+  async uploadPhoto(event: Event): Promise<void> {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+    input.value = ''; // so choosing the same photo again still fires
+    if (!file) return;
+    this.uploadError.set('');
+    this.uploading.set(true);
+    try {
+      let photo: Blob;
+      try {
+        photo = await shrinkPhoto(file, PHOTO_EDGE);
+      } catch {
+        this.uploadError.set(`Couldn't open ${file.name}. Try a JPEG or PNG photo.`);
+        return;
+      }
+      this.draft.image = await this.service.uploadImage(photo);
+    } catch (e) {
+      this.uploadError.set(errorMessage(e));
+    } finally {
+      this.uploading.set(false);
+    }
   }
 
   moveStep(index: number, delta: number): void {

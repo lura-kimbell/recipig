@@ -7,21 +7,26 @@ import { createMemoryStores } from '../src/memoryStores.ts';
 import type { PhotoReader } from '../src/photoImport.ts';
 import { BLOG_PAGE, NO_RECIPE_PAGE } from './fixtures.ts';
 
-type Reply = { status: number; json: any; headers: Headers };
-type Call = (method: string, url: string, body?: unknown) => Promise<Reply>;
+type Reply = { status: number; json: any; headers: Headers; bytes?: Buffer };
+/** With a content type, the body is sent as it is (an uploaded photo); otherwise as JSON. */
+type Call = (method: string, url: string, body?: unknown, contentType?: string) => Promise<Reply>;
 
 /** A tiny browser: remembers cookies between calls. */
 function makeClient(base: string): Call {
   let cookie = '';
-  return async (method, url, body) => {
+  return async (method, url, body, contentType) => {
     const headers: Record<string, string> = {};
-    if (body !== undefined) headers['content-type'] = 'application/json';
+    if (body !== undefined) headers['content-type'] = contentType ?? 'application/json';
     if (cookie) headers.cookie = cookie;
-    const res = await fetch(base + url, { method, headers, body: body === undefined ? undefined : JSON.stringify(body) });
+    const payload = body === undefined ? undefined : contentType ? new Uint8Array(body as Buffer) : JSON.stringify(body);
+    const res = await fetch(base + url, { method, headers, body: payload });
     for (const set of res.headers.getSetCookie()) {
       const pair = set.split(';')[0];
       const [name, value] = pair.split('=');
       cookie = value === '' ? '' : `${name}=${value}`;
+    }
+    if (res.headers.get('content-type')?.startsWith('image/')) {
+      return { status: res.status, json: undefined, headers: res.headers, bytes: Buffer.from(await res.arrayBuffer()) };
     }
     const text = await res.text();
     return { status: res.status, json: text ? JSON.parse(text) : undefined, headers: res.headers };
@@ -385,4 +390,63 @@ test('sources: create, rename, give to a recipe, filter out strangers, delete', 
     assert.equal(after.title, 'Traybake');
     assert.equal(after.sourceId, undefined);
   });
+});
+
+/** The first bytes of a JPEG, then filler: enough to pass for a photo. */
+const JPEG = Buffer.concat([Buffer.from([0xff, 0xd8, 0xff, 0xe0]), Buffer.alloc(2000, 7)]);
+
+test('uploaded photos: only real images, served to their owner only, usable as a recipe image', async () => {
+  await withServer(okPage, async (call, newClient) => {
+    const up = await call('POST', '/api/images', JPEG, 'image/jpeg');
+    assert.equal(up.status, 201);
+    assert.match(up.json.url, /^\/api\/images\/[0-9a-f-]{36}$/);
+
+    const got = await call('GET', up.json.url);
+    assert.equal(got.status, 200);
+    assert.equal(got.headers.get('content-type'), 'image/jpeg');
+    assert.match(got.headers.get('cache-control') ?? '', /private/);
+    assert.deepEqual(got.bytes, JPEG);
+
+    assert.equal((await call('POST', '/api/images', Buffer.from('<svg/>'), 'image/jpeg')).status, 400);
+    assert.equal((await call('POST', '/api/images', JPEG, 'image/gif')).status, 400);
+    assert.equal((await call('POST', '/api/images', Buffer.concat([JPEG, Buffer.alloc(5 * 1024 * 1024)]), 'image/jpeg')).status, 413);
+    assert.equal((await newClient()('POST', '/api/images', JPEG, 'image/jpeg')).status, 401);
+
+    const bob = newClient();
+    await bob('POST', '/api/auth/register', { username: 'bob', password: 'pw' });
+    assert.equal((await bob('GET', up.json.url)).status, 404);
+
+    const recipe = await call('POST', '/api/recipes', { title: 'Mine', image: up.json.url, ingredients: [], steps: [] });
+    assert.equal(recipe.json.image, up.json.url);
+    assert.equal((await call('POST', '/api/recipes', { title: 'T', image: '/api/images/../../etc', ingredients: [], steps: [] })).status, 400);
+  });
+});
+
+test('uploaded photos are deleted when no recipe uses them any more', async () => {
+  let clock = Date.now();
+  await withServer(
+    okPage,
+    async (call) => {
+      const first = (await call('POST', '/api/images', JPEG, 'image/jpeg')).json.url;
+      const recipe = (await call('POST', '/api/recipes', { title: 'R', image: first, ingredients: [], steps: [] })).json;
+
+      // Swapping the photo deletes the old one.
+      const second = (await call('POST', '/api/images', JPEG, 'image/jpeg')).json.url;
+      assert.equal((await call('PUT', `/api/recipes/${recipe.id}`, { ...recipe, image: second })).status, 200);
+      assert.equal((await call('GET', first)).status, 404);
+      assert.equal((await call('GET', second)).status, 200);
+
+      // An upload never saved on a recipe is kept a day (the editor may still be open), then cleared.
+      const abandoned = (await call('POST', '/api/images', JPEG, 'image/jpeg')).json.url;
+      clock += 2 * 24 * 60 * 60 * 1000;
+      await call('POST', '/api/images', JPEG, 'image/jpeg');
+      assert.equal((await call('GET', abandoned)).status, 404);
+      assert.equal((await call('GET', second)).status, 200);
+
+      // Deleting the recipe deletes its photo.
+      assert.equal((await call('DELETE', `/api/recipes/${recipe.id}`)).status, 204);
+      assert.equal((await call('GET', second)).status, 404);
+    },
+    { now: () => clock },
+  );
 });

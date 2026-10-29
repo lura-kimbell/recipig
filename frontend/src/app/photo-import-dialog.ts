@@ -1,6 +1,7 @@
 import { Component, ElementRef, inject, signal, viewChild } from '@angular/core';
 import { Router } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
+import { shrinkPhoto } from './image-resize';
 import { PhotoUpload, RecipeService, errorMessage } from './recipe.service';
 
 /** Photos per recipe; must match MAX_PHOTOS in backend/src/app.ts. */
@@ -123,7 +124,7 @@ export class PhotoImportDialog {
     try {
       for (const file of files.slice(0, room)) {
         try {
-          const blob = await shrink(file);
+          const blob = await shrinkPhoto(file, MAX_EDGE);
           this.photos.update((list) => [...list, { id: this.nextId++, name: file.name, preview: URL.createObjectURL(blob), blob }]);
         } catch {
           this.error.set(`Couldn't open ${file.name}. Try a JPEG or PNG photo.`);
@@ -165,25 +166,6 @@ export class PhotoImportDialog {
     } finally {
       this.reading.set(false);
     }
-  }
-}
-
-/** The photo as a JPEG no bigger than MAX_EDGE on its long side, the right way up. */
-async function shrink(file: File): Promise<Blob> {
-  const bitmap = await createImageBitmap(file, { imageOrientation: 'from-image' });
-  try {
-    const scale = Math.min(1, MAX_EDGE / Math.max(bitmap.width, bitmap.height));
-    const canvas = document.createElement('canvas');
-    canvas.width = Math.round(bitmap.width * scale);
-    canvas.height = Math.round(bitmap.height * scale);
-    const ctx = canvas.getContext('2d');
-    if (!ctx) throw new Error('No canvas');
-    ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
-    return await new Promise<Blob>((resolve, reject) =>
-      canvas.toBlob((b) => (b ? resolve(b) : reject(new Error('Could not encode'))), 'image/jpeg', 0.85),
-    );
-  } finally {
-    bitmap.close();
   }
 }
 

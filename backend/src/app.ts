@@ -6,6 +6,8 @@ import { extractRecipe, NoRecipeError } from './extract.ts';
 import { fetchPage, FetchError, UrlError } from './fetchPage.ts';
 import type { FetchedPage } from './fetchPage.ts';
 import { AuthError, createAuth, currentUser, RateLimitError } from './authRoutes.ts';
+import { looksLike, MAX_UPLOAD_BYTES, UPLOAD_TYPES, uploadedImageId, uploadedImageUrl } from './images.ts';
+import type { UploadType } from './images.ts';
 import { parseSourceInput } from './sources.ts';
 import { SourceNameTakenError, UsernameTakenError } from './stores.ts';
 import type { Stores } from './stores.ts';
@@ -39,6 +41,9 @@ export interface AppOptions {
 const MAX_PHOTOS = 6;
 const PHOTO_IMPORTS_PER_DAY = 30;
 const PHOTO_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
+/** Recipe photos uploaded per person per day, and how long an upload no recipe uses is kept. */
+const IMAGE_UPLOADS_PER_DAY = 100;
+const UNUSED_IMAGE_GRACE_MS = 24 * 60 * 60 * 1000;
 
 function parsePhotos(body: unknown): RecipePhoto[] {
   const photos = (body as { photos?: unknown } | undefined)?.photos;
@@ -56,7 +61,19 @@ export function createApp(stores: Stores, options: AppOptions = {}) {
   const getPage = options.fetchPage ?? fetchPage;
   const readPhotos = options.readPhotos === undefined ? claudePhotoReader() : options.readPhotos;
   const photoLimiter = new AttemptLimiter(PHOTO_IMPORTS_PER_DAY, 24 * 60 * 60 * 1000, options.now);
-  const { recipes: store, sources } = stores;
+  const uploadLimiter = new AttemptLimiter(IMAGE_UPLOADS_PER_DAY, 24 * 60 * 60 * 1000, options.now);
+  const clock = options.now ?? Date.now;
+  const { recipes: store, sources, images } = stores;
+
+  /** Ids of the user's uploaded photos that some recipe uses. */
+  const imagesInUse = async (userId: string): Promise<Set<string>> =>
+    new Set((await store.list(userId)).flatMap((r) => uploadedImageId(r.image) ?? []));
+
+  /** After a recipe stops using an uploaded photo, delete it unless another recipe still does. */
+  const dropImageIfUnused = async (userId: string, image: string | undefined): Promise<void> => {
+    const id = uploadedImageId(image);
+    if (id && !(await imagesInUse(userId)).has(id)) await images.remove(userId, id);
+  };
 
   /** A recipe may only point at one of its owner's own sources. */
   const checkSource = async (userId: string, draft: RecipeDraft): Promise<RecipeDraft> => {
@@ -133,20 +150,59 @@ export function createApp(stores: Stores, options: AppOptions = {}) {
 
   app.put('/api/recipes/:id', async (req, res) => {
     const userId = currentUser(res).id;
-    const updated = await store.update(userId, req.params.id, await checkSource(userId, parseRecipeInput(req.body)));
+    const before = await store.get(userId, req.params.id);
+    const updated = before && (await store.update(userId, req.params.id, await checkSource(userId, parseRecipeInput(req.body))));
     if (!updated) {
       res.status(404).json({ error: 'Recipe not found.' });
       return;
     }
+    if (before.image !== updated.image) await dropImageIfUnused(userId, before.image);
     res.json(updated);
   });
 
   app.delete('/api/recipes/:id', async (req, res) => {
-    if (!(await store.remove(currentUser(res).id, req.params.id))) {
+    const userId = currentUser(res).id;
+    const recipe = await store.get(userId, req.params.id);
+    if (!recipe || !(await store.remove(userId, req.params.id))) {
       res.status(404).json({ error: 'Recipe not found.' });
       return;
     }
+    await dropImageIfUnused(userId, recipe.image);
     res.status(204).end();
+  });
+
+  // Recipe photos from the cook's device (images.ts). The body is the image itself.
+  app.use('/api/images', auth.requireUser);
+
+  app.post(
+    '/api/images',
+    express.raw({ type: [...UPLOAD_TYPES], limit: MAX_UPLOAD_BYTES }),
+    async (req, res) => {
+      const type = req.headers['content-type']?.split(';')[0].trim().toLowerCase() as UploadType | undefined;
+      const data: unknown = req.body;
+      if (!type || !UPLOAD_TYPES.includes(type) || !Buffer.isBuffer(data) || !looksLike(type, data)) {
+        throw new ValidationError('Please choose a JPEG, PNG or WebP photo.');
+      }
+      const userId = currentUser(res).id;
+      if (uploadLimiter.isBlocked(userId)) throw new RateLimitError("That's a lot of photos for one day. Please try again tomorrow.");
+      uploadLimiter.record(userId);
+      // Photos uploaded but never saved on a recipe (the editor was left without saving) go after a day.
+      await images.sweep(userId, await imagesInUse(userId), new Date(clock() - UNUSED_IMAGE_GRACE_MS));
+      const id = await images.create(userId, { contentType: type, data });
+      res.status(201).json({ url: uploadedImageUrl(id) });
+    },
+  );
+
+  app.get('/api/images/:id', async (req, res) => {
+    const image = await images.get(currentUser(res).id, req.params.id);
+    if (!image) {
+      res.status(404).json({ error: 'Image not found.' });
+      return;
+    }
+    // An id always shows the same photo, so the browser can keep it (but only for this person).
+    res.setHeader('Cache-Control', 'private, max-age=31536000, immutable');
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.type(image.contentType).send(image.data);
   });
 
   // Sources: the cook's own labels for where recipes come from (sources.ts).

@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import { uploadedImageId } from './images.ts';
 import { canonicalTag, RECIPE_TAGS } from './tags.ts';
 import type { RecipeDraft } from './types.ts';
 
@@ -31,6 +32,13 @@ function optionalHttpUrl(v: unknown, field: string): string | undefined {
     // fall through
   }
   throw new ValidationError(`${field} must be an http(s) URL.`);
+}
+
+/** An image link, or the address of a photo uploaded to this app (images.ts). */
+function optionalImage(v: unknown): string | undefined {
+  const s = optionalString(v, 2000, 'image');
+  if (s && uploadedImageId(s)) return s;
+  return optionalHttpUrl(s, 'image');
 }
 
 function uniqueId(candidate: unknown, seen: Set<string>): string {
@@ -95,7 +103,7 @@ export function parseRecipeInput(body: unknown): RecipeDraft {
     title,
     sourceUrl: optionalHttpUrl(body.sourceUrl, 'sourceUrl'),
     sourceId: optionalString(body.sourceId, 100, 'sourceId'),
-    image: optionalHttpUrl(body.image, 'image'),
+    image: optionalImage(body.image),
     servings: optionalString(body.servings, 200, 'servings'),
     prepTime: optionalString(body.prepTime, 200, 'prepTime'),
     cookTime: optionalString(body.cookTime, 200, 'cookTime'),

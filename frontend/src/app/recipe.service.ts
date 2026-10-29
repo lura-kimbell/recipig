@@ -1,5 +1,6 @@
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
+import { firstValueFrom } from 'rxjs';
 import { Recipe, RecipeDraft } from './models';
 
 /** One photo of a cookbook page, resized in the browser, as base64 without a data: prefix. */
@@ -33,6 +34,14 @@ export class RecipeService {
     return this.http.post<RecipeDraft>('/api/recipes/import-photos', { photos });
   }
 
+  /** Uploads a recipe photo (already shrunk); resolves to the address to use as the recipe's image. */
+  async uploadImage(photo: Blob): Promise<string> {
+    const { url } = await firstValueFrom(
+      this.http.post<{ url: string }>('/api/images', photo, { headers: { 'Content-Type': photo.type || 'image/jpeg' } }),
+    );
+    return url;
+  }
+
   save(recipe: Recipe) {
     return this.http.put<Recipe>(`/api/recipes/${encodeURIComponent(recipe.id)}`, recipe);
   }
@@ -50,6 +59,11 @@ export function errorMessage(e: unknown): string {
     if (e.status === 0) return "Couldn't reach the Recipig server. Is the backend running?";
   }
   return 'Something went wrong. Please try again.';
+}
+
+/** Whether an image address is a photo uploaded to Recipig (backend/src/images.ts) rather than a link. */
+export function isUploadedImage(url?: string): boolean {
+  return !!url && /^\/api\/images\/[0-9a-f-]{36}$/.test(url);
 }
 
 /** "https://www.example.com/x" -> "example.com", or '' if there is no usable link. */

@@ -1533,8 +1533,12 @@ details summary {
     background: color-mix(in srgb, var(--lilac) 35%, var(--cloud));
   }
 }
-.source-row {
+.source-row,
+.photo-actions {
   align-items: center;
+}
+.photo-actions {
+  flex-wrap: wrap;
 }
 
 /* From Photos: the pages picked so far, in order. */

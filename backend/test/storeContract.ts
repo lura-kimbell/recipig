@@ -164,6 +164,26 @@ export function runStoreContract(name: string, open: () => Promise<{ stores: Sto
     assert.equal(await sources.get('u1', nyt.id), undefined);
   });
 
+  t('images: kept per user, removable, and swept unless kept or recent', async ({ images }) => {
+    const photo = { contentType: 'image/jpeg' as const, data: Buffer.from([0xff, 0xd8, 0xff, 1, 2, 3]) };
+    const a = await images.create('u1', photo);
+    const b = await images.create('u1', photo);
+    const c = await images.create('u2', photo);
+    assert.deepEqual(await images.get('u1', a), photo);
+    assert.equal(await images.get('u2', a), undefined);
+
+    // Nothing older than "an hour ago" yet, so nothing goes.
+    assert.equal(await images.sweep('u1', new Set(), new Date(Date.now() - 3600_000)), 0);
+    assert.equal(await images.sweep('u1', new Set([a]), new Date(Date.now() + 1000)), 1);
+    assert.ok(await images.get('u1', a));
+    assert.equal(await images.get('u1', b), undefined);
+    assert.ok(await images.get('u2', c));
+
+    assert.equal(await images.remove('u2', a), false);
+    assert.equal(await images.remove('u1', a), true);
+    assert.equal(await images.get('u1', a), undefined);
+  });
+
   t('remove deletes only that recipe', async ({ recipes }) => {
     const a = await recipes.create('u1', draft('A'));
     await recipes.create('u1', draft('B'));
