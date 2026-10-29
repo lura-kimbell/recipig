@@ -312,7 +312,7 @@ test('photo import reads the photos into an unsaved draft for the editor', async
     assert.equal(draft.title, 'Lemon Chicken Traybake');
     assert.equal(draft.servings, 'Serves 4');
     assert.equal(draft.totalTime, undefined);
-    assert.deepEqual(draft.tags, ['Chicken']);
+    assert.deepEqual(draft.tags, ['Poultry']);
     assert.equal(draft.ingredients[2].text, '1 tbsp olive oil');
     assert.equal(draft.steps[1].ingredientIds.length, 3);
     assert.equal(draft.id, undefined);

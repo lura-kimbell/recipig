@@ -33,7 +33,7 @@ export interface Recipe {
   totalTime?: string;
   /** The cook's own notes: tweaks they tried, ideas for next time. */
   notes?: string;
-  /** Main-ingredient tags such as "Chicken"; omitted when there are none. */
+  /** Main-ingredient tags such as "Poultry"; omitted when there are none. */
   tags?: RecipeTag[];
   ingredients: Ingredient[];
   steps: Step[];

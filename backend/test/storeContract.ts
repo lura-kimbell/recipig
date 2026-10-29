@@ -85,7 +85,7 @@ export function runStoreContract(name: string, open: () => Promise<{ stores: Sto
   });
 
   t('update keeps id and createdAt, replaces the rest, and clears optional fields left out', async ({ recipes }) => {
-    const created = await recipes.create('u1', draft('Old', { servings: '4', sourceUrl: 'https://x.example/', sourceId: 'src-1', notes: 'n', tags: ['Chicken'] }));
+    const created = await recipes.create('u1', draft('Old', { servings: '4', sourceUrl: 'https://x.example/', sourceId: 'src-1', notes: 'n', tags: ['Poultry'] }));
     await new Promise((r) => setTimeout(r, 5));
     const updated = await recipes.update('u1', created.id, draft('New', { ingredients: [{ id: 'i9', text: '1 cup milk', checked: true, section: 'Wet' }] }));
     assert.equal(updated?.id, created.id);
@@ -182,6 +182,13 @@ export function runStoreContract(name: string, open: () => Promise<{ stores: Sto
     assert.equal(await images.remove('u2', a), false);
     assert.equal(await images.remove('u1', a), true);
     assert.equal(await images.get('u1', a), undefined);
+  });
+
+  t('the old Chicken tag reads as Poultry', async ({ recipes }) => {
+    const created = await recipes.create('u1', draft('Old tag', { tags: ['Fish'] }));
+    assert.equal(await recipes.restore('u1', { ...created, id: 'legacy-3', tags: ['Fish', 'Chicken'] } as never), true);
+    assert.deepEqual((await recipes.get('u1', 'legacy-3'))?.tags, ['Poultry', 'Fish']);
+    assert.deepEqual((await recipes.list('u1')).find((r) => r.id === 'legacy-3')?.tags, ['Poultry', 'Fish']);
   });
 
   t('remove deletes only that recipe', async ({ recipes }) => {

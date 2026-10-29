@@ -1,5 +1,5 @@
 /** Main-ingredient tags, in the order they are shown. Must match RECIPE_TAGS in backend/src/tags.ts. */
-export const RECIPE_TAGS = ['Chicken', 'Beef', 'Pork', 'Fish', 'Vegetarian'] as const;
+export const RECIPE_TAGS = ['Poultry', 'Beef', 'Pork', 'Fish', 'Vegetarian'] as const;
 
 export type RecipeTag = (typeof RECIPE_TAGS)[number];
 

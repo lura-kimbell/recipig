@@ -3,13 +3,14 @@ import test from 'node:test';
 import { canonicalTag, detectTags } from '../src/tags.ts';
 
 test('canonicalTag accepts any case and rejects unknown tags', () => {
-  assert.equal(canonicalTag(' chicken '), 'Chicken');
+  assert.equal(canonicalTag(' poultry '), 'Poultry');
+  assert.equal(canonicalTag('Chicken'), 'Poultry');
   assert.equal(canonicalTag('VEGETARIAN'), 'Vegetarian');
   assert.equal(canonicalTag('Lamb'), undefined);
 });
 
 test('a meat named in the title decides the tag', () => {
-  assert.deepEqual(detectTags('Chicken Piccata', ['4 chicken breasts', '2 oz pancetta', '1 lemon']), ['Chicken']);
+  assert.deepEqual(detectTags('Chicken Piccata', ['4 chicken breasts', '2 oz pancetta', '1 lemon']), ['Poultry']);
   assert.deepEqual(detectTags('Steak Frites', ['2 strip steaks', '1 lb potatoes']), ['Beef']);
   assert.deepEqual(detectTags('Surf and Turf: Steak and Shrimp', ['2 steaks', '12 shrimp']), ['Beef', 'Fish']);
 });
@@ -18,7 +19,7 @@ test('without a meat in the title, the ingredients decide', () => {
   assert.deepEqual(detectTags('Weeknight Tacos', ['1 lb ground beef', '8 tortillas']), ['Beef']);
   assert.deepEqual(detectTags('Carbonara', ['1 lb spaghetti', '4 oz guanciale', '3 eggs']), ['Pork']);
   assert.deepEqual(detectTags('Sheet Pan Dinner', ['2 salmon fillets', '1 lb asparagus']), ['Fish']);
-  assert.deepEqual(detectTags('Cobb Salad', ['2 cooked chicken breasts', '6 slices bacon', 'lettuce']), ['Chicken', 'Pork']);
+  assert.deepEqual(detectTags('Cobb Salad', ['2 cooked chicken breasts', '6 slices bacon', 'lettuce']), ['Poultry', 'Pork']);
 });
 
 test('stock, fish sauce and anchovies are not a main ingredient, but are not vegetarian either', () => {
@@ -38,4 +39,16 @@ test('recipes with no meat or fish are vegetarian', () => {
 test('a title that says vegan or vegetarian wins', () => {
   assert.deepEqual(detectTags('Vegan "Chicken" Nuggets', ['1 block tofu', 'breadcrumbs']), ['Vegetarian']);
   assert.deepEqual(detectTags('Meatless Monday Chili', ['1 can beans', '1 cup meatless crumbles']), ['Vegetarian']);
+});
+
+test('Poultry covers other birds, not their stock, fat, sauce or eggs', () => {
+  assert.deepEqual(detectTags('Crispy Duck Legs', ['4 duck legs', 'salt']), ['Poultry']);
+  assert.deepEqual(detectTags('Roast Turkey Crown', ['1 turkey crown', 'butter']), ['Poultry']);
+  assert.deepEqual(detectTags('Christmas Goose', ['1 goose (about 5 kg)']), ['Poultry']);
+  assert.deepEqual(detectTags('Weeknight Dinner', ['2 Cornish game hens', '1 lemon']), ['Poultry']);
+  assert.deepEqual(detectTags('Grilled Quail', ['8 quails', 'honey']), ['Poultry']);
+  assert.deepEqual(detectTags('Duck Fat Potatoes', ['1 kg potatoes', '3 tbsp duck fat']), []);
+  assert.deepEqual(detectTags('Spring Rolls', ['8 rice paper wrappers', 'duck sauce, to serve', 'carrots']), []);
+  assert.deepEqual(detectTags('Mushroom Risotto', ['300 g arborio rice', '1 litre turkey stock']), []);
+  assert.deepEqual(detectTags('Pickled Quail Eggs', ['12 quail eggs', 'vinegar']), ['Vegetarian']);
 });

@@ -92,14 +92,16 @@ test('rejects a section label that is not text', () => {
 });
 
 test('keeps known tags in the standard order, and none means undefined', () => {
-  assert.deepEqual(parseRecipeInput({ title: 'T', tags: ['fish', 'Chicken', 'chicken'] }).tags, ['Chicken', 'Fish']);
+  assert.deepEqual(parseRecipeInput({ title: 'T', tags: ['fish', 'Poultry', 'poultry'] }).tags, ['Poultry', 'Fish']);
+  // The old name of Poultry still works, for recipes saved before the rename.
+  assert.deepEqual(parseRecipeInput({ title: 'T', tags: ['Chicken', 'Poultry'] }).tags, ['Poultry']);
   assert.equal(parseRecipeInput({ title: 'T', tags: [] }).tags, undefined);
   assert.equal(parseRecipeInput({ title: 'T' }).tags, undefined);
 });
 
 test('rejects unknown tags', () => {
   assert.throws(() => parseRecipeInput({ title: 'T', tags: ['Lamb'] }), ValidationError);
-  assert.throws(() => parseRecipeInput({ title: 'T', tags: 'Chicken' }), ValidationError);
+  assert.throws(() => parseRecipeInput({ title: 'T', tags: 'Poultry' }), ValidationError);
 });
 
 test('keeps recipe notes (trimmed, line breaks and all), and steps no longer carry notes', () => {

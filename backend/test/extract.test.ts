@@ -166,7 +166,7 @@ test('a stub with no readable ingredients and steps on the page is still not a r
 
 test('tags imported recipes by main ingredient', () => {
   assert.deepEqual(extractRecipe(BLOG_PAGE).tags, ['Vegetarian']);
-  assert.deepEqual(extractRecipe(STUB_JSONLD_PAGE).tags, ['Chicken']);
+  assert.deepEqual(extractRecipe(STUB_JSONLD_PAGE).tags, ['Poultry']);
 });
 
 /** A minimal recipe page whose JSON-LD image value (and optional share image) is as given. */

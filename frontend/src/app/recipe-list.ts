@@ -153,7 +153,7 @@ export class RecipeList implements OnInit {
   readonly loading = signal(true);
   readonly error = signal('');
 
-  /** Tags picked in the filter; kept in the URL (?tag=Chicken&tag=Fish) so Back returns to the same view. */
+  /** Tags picked in the filter; kept in the URL (?tag=Poultry&tag=Fish) so Back returns to the same view. */
   readonly selected = signal<RecipeTag[]>([]);
   /** Sources picked in the filter, by id; kept in the URL (?source=…) like the tags. */
   readonly selectedSources = signal<string[]>([]);
@@ -163,8 +163,8 @@ export class RecipeList implements OnInit {
   readonly filtering = computed(() => this.selected().length > 0 || this.selectedSources().length > 0);
 
   /**
-   * Recipes with any of the picked tags, and from any of the picked sources: "Chicken" and
-   * "NY Times" shows NY Times chicken recipes. Nothing picked in a group leaves it out.
+   * Recipes with any of the picked tags, and from any of the picked sources: "Poultry" and
+   * "NY Times" shows NY Times poultry recipes. Nothing picked in a group leaves it out.
    */
   readonly filtered = computed(() => {
     const tags = this.selected();

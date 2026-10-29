@@ -1,5 +1,6 @@
 import type { StoredImage } from './images.ts';
 import type { Source, SourceInput } from './sources.ts';
+import { RECIPE_TAGS, canonicalTag } from './tags.ts';
 import type { Recipe, RecipeDraft } from './types.ts';
 
 /**
@@ -77,8 +78,17 @@ export function foldSourceText(recipe: Recipe): Recipe {
   return { ...rest, ...(notes ? { notes } : {}) };
 }
 
+/** Tags saved under an old name ("Chicken", now Poultry) read as their new name. Saving makes it permanent. */
+export function renameOldTags(recipe: Recipe): Recipe {
+  if (!recipe.tags?.some((t) => !(RECIPE_TAGS as readonly string[]).includes(t))) return recipe;
+  const known = new Set(recipe.tags.map((t) => canonicalTag(t)).filter((t) => t !== undefined));
+  const tags = RECIPE_TAGS.filter((t) => known.has(t));
+  const { tags: _old, ...rest } = recipe;
+  return tags.length > 0 ? { ...rest, tags } : rest;
+}
+
 /** A recipe as read from storage, with older shapes brought up to date. */
-export const fromStorage = (recipe: Recipe): Recipe => foldSourceText(foldStepNotes(recipe));
+export const fromStorage = (recipe: Recipe): Recipe => renameOldTags(foldSourceText(foldStepNotes(recipe)));
 
 export interface SessionRecord {
   userId: string;

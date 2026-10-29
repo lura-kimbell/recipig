@@ -691,7 +691,7 @@ h3 {
   border: var(--border-w-hair) var(--line) var(--outline);
   border-radius: var(--radius-pill);
 }
-.tag-pill[data-tag='Chicken'] {
+.tag-pill[data-tag='Poultry'] {
   --tag-bg: var(--butter);
   --tag-icon: url('/tag-icons/chicken.svg');
 }
