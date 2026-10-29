@@ -729,8 +729,12 @@ button.tag-pill {
   background: var(--cloud);
   box-shadow: var(--shadow-control);
 }
-button.tag-pill:hover {
-  background: var(--tag-bg);
+/* Hover is only a hint of the colour, so a pill just unpicked under the pointer reads as unpicked.
+   Touch screens get none: a tap leaves the pill "hovered" until you tap elsewhere. */
+@media (hover: hover) {
+  button.tag-pill:hover:not([aria-pressed='true']) {
+    background: color-mix(in srgb, var(--tag-bg) 35%, var(--cloud));
+  }
 }
 button.tag-pill[aria-pressed='true'] {
   background: var(--tag-bg);
