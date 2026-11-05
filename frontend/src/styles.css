@@ -119,6 +119,19 @@
   --step-ink: currentColor;
   --nutrition-ink: currentColor;
   --nutrition-label-ink: var(--bark-soft);
+  /* Macro target bars: the empty track, the fill for an "at least" goal (good to fill)
+     and an "at most" limit (room used up), the stripe past a limit, the target mark */
+  --meter-height: 1.15rem;
+  --meter-track: var(--field);
+  --meter-border: var(--border-w-hair) var(--line) var(--outline);
+  --meter-goal: #7fd3a3;
+  --meter-limit: #9fcdf0;
+  --meter-met: var(--leaf);
+  --meter-past: #f2809f;
+  --meter-past-stripe: #ffd5e1;
+  --meter-target: var(--bark);
+  --meter-over-ink: var(--danger-ink);
+  --meter-met-ink: var(--leaf-ink);
   /* Section labels ("Brine", "Sauce"): a name tag, or plain text over a typed rule */
   --section-ink: currentColor;
   --section-bg: var(--lilac);
@@ -230,6 +243,13 @@
   --press: 1px;
   --btn-hover-bg: rgb(255 255 255 / 0.12);
   --check-mark: #03231a;
+  --meter-track: rgb(255 255 255 / 0.06);
+  --meter-goal: #3cf0aa;
+  --meter-limit: #60a5fa;
+  --meter-met: #74f7c4;
+  --meter-past: #f472b6;
+  --meter-past-stripe: #7a1f4c;
+  --meter-target: #eef1ff;
   /* Card tag icons are the same white watermark as Friendly, with a faint aurora glow
      instead of a shadow (a shadow doesn't show on the night sky) */
   --icon-badge-shadow: drop-shadow(0 0 4px rgb(125 255 200 / 0.35));
@@ -319,6 +339,15 @@
   --step-ink: var(--leaf);
   --nutrition-ink: var(--leaf);
   --nutrition-label-ink: var(--leaf);
+  --meter-height: 0.9rem;
+  --meter-track: transparent;
+  --meter-border: 1px dashed var(--outline-dim);
+  --meter-goal: var(--leaf);
+  --meter-limit: #1f9e46;
+  --meter-met: var(--leaf);
+  --meter-past: #ff7070;
+  --meter-past-stripe: #3d1515;
+  --meter-target: #e8e8e8;
   --section-ink: var(--leaf);
   --section-bg: transparent;
   --section-border: transparent;
@@ -982,6 +1011,7 @@ input[type='text'],
 input[type='url'],
 input[type='password'],
 input[type='search'],
+input[type='number'],
 select,
 textarea {
   width: 100%;
@@ -999,6 +1029,7 @@ input[type='text']:focus,
 input[type='url']:focus,
 input[type='password']:focus,
 input[type='search']:focus,
+input[type='number']:focus,
 select:focus,
 textarea:focus {
   outline: none;
@@ -1383,6 +1414,192 @@ details summary {
 }
 .nutrition tbody tr:last-child > * {
   border-bottom: 0;
+}
+
+/* ---------- Macro targets: bars on the recipe page, rows in the dialog ---------- */
+
+.macro-compare {
+  margin: 0.3rem 0 1.1rem;
+  padding-bottom: 1rem;
+  border-bottom: var(--border-w-hair) dashed var(--outline);
+}
+.macro-compare-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.4rem 0.8rem;
+  margin-bottom: 0.7rem;
+}
+.macro-compare-head h3 {
+  margin: 0;
+  font: 500 1.05rem/1.3 var(--font-display);
+  color: var(--nutrition-label-ink);
+}
+.macro-prompt {
+  margin: 0.2rem 0 0.8rem;
+}
+.macro-bars {
+  display: grid;
+  gap: 0.95rem 1.6rem;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 15rem), 1fr));
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  color: var(--nutrition-ink);
+  font-variant-numeric: tabular-nums;
+}
+.macro-bar-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0 0.5rem;
+  margin-bottom: 0.3rem;
+}
+.macro-bar-name {
+  font-weight: 700;
+}
+.macro-bar-value {
+  margin-left: auto;
+  white-space: nowrap;
+}
+.meter {
+  position: relative;
+  height: var(--meter-height);
+  overflow: hidden;
+  background: var(--meter-track);
+  border: var(--meter-border);
+  border-radius: var(--radius-pill);
+}
+.meter-fill {
+  display: flex;
+  height: 100%;
+  overflow: hidden;
+  border-radius: var(--radius-pill) 0 0 var(--radius-pill);
+  transform-origin: left;
+  animation: meter-grow 0.7s cubic-bezier(0.2, 0.8, 0.3, 1.1) both;
+}
+.macro-bar[data-direction='atLeast'] .meter-part {
+  background: var(--meter-goal);
+}
+.macro-bar[data-direction='atMost'] .meter-part {
+  background: var(--meter-limit);
+}
+.macro-bar[data-status='met'] .meter-part {
+  background: var(--meter-met);
+}
+/* Several portions (a day of meals): a thin gap between each one's stretch. */
+.meter-part + .meter-part {
+  box-shadow: inset 2px 0 0 var(--surface);
+}
+/* Past the target: a stripe over the fill, a warning on an "at most" limit. */
+.meter-past {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  animation: meter-grow 0.7s cubic-bezier(0.2, 0.8, 0.3, 1.1) both;
+  transform-origin: left;
+}
+.macro-bar[data-status='over'] .meter-past {
+  background: repeating-linear-gradient(-45deg, var(--meter-past) 0 6px, var(--meter-past-stripe) 6px 10px);
+}
+.macro-bar[data-status='met'] .meter-past {
+  background: repeating-linear-gradient(-45deg, transparent 0 6px, rgb(255 255 255 / 0.35) 6px 10px);
+}
+.meter-target {
+  position: absolute;
+  top: -2px;
+  bottom: -2px;
+  width: 3px;
+  margin-left: -1.5px;
+  background: var(--meter-target);
+  border-radius: 2px;
+}
+.meter-more {
+  position: absolute;
+  top: 50%;
+  right: 0.45rem;
+  transform: translateY(-50%);
+  color: var(--surface);
+  font-weight: 800;
+  font-size: 0.85rem;
+  line-height: 1;
+}
+.macro-bar-note {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 0.5rem;
+  margin: 0.3rem 0 0;
+  color: var(--bark-soft);
+  font-size: 0.88rem;
+}
+.macro-percent {
+  font-weight: 700;
+}
+.macro-status {
+  margin-left: auto;
+}
+.macro-bar[data-status='over'] .macro-status {
+  color: var(--meter-over-ink);
+  font-weight: 800;
+}
+.macro-bar[data-status='met'] .macro-status {
+  color: var(--meter-met-ink);
+  font-weight: 800;
+}
+.macro-bar[data-status='met'] .macro-status::before {
+  content: '✓ ';
+}
+.macro-bar[data-status='over'] .macro-status::before {
+  content: '▲ ';
+}
+@keyframes meter-grow {
+  from {
+    transform: scaleX(0);
+  }
+}
+
+.macro-dialog {
+  width: min(34rem, calc(100vw - 2rem));
+}
+.macro-rows {
+  display: grid;
+  gap: 0.55rem;
+  margin: 1rem 0 0;
+}
+.macro-row {
+  display: grid;
+  grid-template-columns: minmax(6.5rem, 1fr) 9rem 9.5rem;
+  align-items: center;
+  gap: 0.6rem;
+}
+.macro-name {
+  font-weight: 700;
+}
+.macro-amount {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+.macro-amount input {
+  min-width: 0;
+}
+.macro-amount .small {
+  width: 2rem;
+}
+.macro-row.off .macro-name,
+.macro-row.off .macro-amount {
+  opacity: 0.6;
+}
+@media (max-width: 560px) {
+  .macro-row {
+    grid-template-columns: 1fr 1fr;
+  }
+  .macro-name {
+    grid-column: 1 / -1;
+    margin-bottom: -0.3rem;
+  }
 }
 
 .visually-hidden {

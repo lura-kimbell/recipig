@@ -1,6 +1,7 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable, inject, signal } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
+import type { MacroTarget } from './macros';
 
 export interface User {
   id: string;
@@ -9,6 +10,8 @@ export interface User {
   theme?: string;
   /** Themes in which they hide recipe photos; see ThemeService. */
   hideImagesIn?: string[];
+  /** Daily nutrition goals; see MacroTargetsService. */
+  macroTargets?: MacroTarget[];
 }
 
 @Injectable({ providedIn: 'root' })

@@ -450,3 +450,24 @@ test('uploaded photos are deleted when no recipe uses them any more', async () =
     { now: () => clock },
   );
 });
+
+test('daily macro targets are saved on the account', async () => {
+  await withServer(okPage, async (alice, newClient) => {
+    assert.deepEqual((await alice('GET', '/api/auth/me')).json.macroTargets, []);
+    const targets = [
+      { nutrient: 'protein', direction: 'atLeast', amount: 100 },
+      { nutrient: 'calories', direction: 'atMost', amount: 2500 },
+    ];
+    const saved = await alice('PUT', '/api/auth/macro-targets', { targets });
+    assert.equal(saved.status, 200);
+    // Stored in nutrient order.
+    assert.deepEqual(saved.json.macroTargets, [targets[1], targets[0]]);
+    assert.deepEqual((await alice('GET', '/api/auth/me')).json.macroTargets, [targets[1], targets[0]]);
+    const bad = await alice('PUT', '/api/auth/macro-targets', { targets: [{ nutrient: 'protein', direction: 'lots', amount: 1 }] });
+    assert.equal(bad.status, 400);
+    assert.equal((await alice('PUT', '/api/auth/macro-targets', {})).status, 400);
+    assert.equal((await newClient()('PUT', '/api/auth/macro-targets', { targets: [] })).status, 401);
+    await alice('PUT', '/api/auth/macro-targets', { targets: [] });
+    assert.deepEqual((await alice('GET', '/api/auth/me')).json.macroTargets, []);
+  });
+});

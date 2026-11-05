@@ -1,4 +1,4 @@
-import { Component, OnInit, computed, inject, signal } from '@angular/core';
+import { Component, OnInit, computed, inject, signal, viewChild } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { Ingredient, Recipe, Step, groupBySection } from './models';
@@ -7,10 +7,14 @@ import { SourceService, sourceIconUrl } from './source.service';
 import { NUTRIENT_KEYS, estimateNutrition, scaleNutrients, servingCount } from './nutrition';
 import { FOODS } from './nutrition-data';
 import { scaleIngredientText } from './scale';
+import { MacroBars } from './macro-bars';
+import { MacroTargetsDialog } from './macro-targets-dialog';
+import { MacroTargetsService } from './macro-targets.service';
+import { compareToTargets, formatAmount } from './macros';
 
 @Component({
   selector: 'app-recipe-detail',
-  imports: [RouterLink],
+  imports: [RouterLink, MacroBars, MacroTargetsDialog],
   template: `
     @if (loading()) {
       <p class="muted">Loading…</p>
@@ -169,6 +173,23 @@ import { scaleIngredientText } from './scale';
         @if (nutrition().counted === 0) {
           <p class="muted">Add amounts to the ingredients (like "1 cup flour") to see a nutrition estimate.</p>
         } @else {
+          @if (targetComparisons().length > 0) {
+            <div class="macro-compare">
+              <div class="macro-compare-head">
+                <h3 id="macro-compare-title">
+                  {{ perServing() ? 'One serving' : 'The whole ' + (multiplier() !== 1 ? 'batch' : 'recipe') }} vs. your
+                  daily targets
+                </h3>
+                <button type="button" class="btn small" (click)="targetsDialog().open()">Edit targets</button>
+              </div>
+              <app-macro-bars [comparisons]="targetComparisons()" />
+            </div>
+          } @else {
+            <p class="macro-prompt muted small">
+              See how a serving measures up against your day.
+              <button type="button" class="link-btn" (click)="targetsDialog().open()">Set daily targets</button>
+            </p>
+          }
           <table class="nutrition">
             <thead>
               <tr>
@@ -203,6 +224,7 @@ import { scaleIngredientText } from './scale';
         }
       </section>
     }
+    <app-macro-targets-dialog />
   `,
 })
 export class RecipeDetail implements OnInit {
@@ -249,6 +271,19 @@ export class RecipeDetail implements OnInit {
     const servings = servingCount(this.recipe()?.servings);
     return servings ? scaleNutrients(this.nutrition().total, 1 / servings) : null;
   });
+  private readonly macroTargets = inject(MacroTargetsService);
+  readonly targetsDialog = viewChild.required(MacroTargetsDialog);
+  /**
+   * A serving compared with the daily targets (the whole batch when the recipe doesn't
+   * say how many it serves). It's a list of one portion; a day of meals would pass one
+   * portion per recipe.
+   */
+  readonly targetComparisons = computed(() => {
+    const r = this.recipe();
+    if (!r || this.nutrition().counted === 0) return [];
+    const perServing = this.perServing() ?? this.batchNutrition();
+    return compareToTargets([{ label: r.title, perServing }], this.macroTargets.targets());
+  });
   readonly skippedText = computed(() => this.nutrition().skipped.map((s) => s.text).join(', '));
   readonly nutrientRows: { key: (typeof NUTRIENT_KEYS)[number]; label: string; unit: 'kcal' | 'g' | 'mg'; sub?: boolean }[] = [
     { key: 'calories', label: 'Calories', unit: 'kcal' },
@@ -260,11 +295,7 @@ export class RecipeDetail implements OnInit {
     { key: 'sodium', label: 'Sodium', unit: 'mg' },
   ];
 
-  /** "1,240 kcal", "8.5 g", "36 g", "410 mg". */
-  show(value: number, unit: string): string {
-    const rounded = unit === 'g' && value < 10 ? Math.round(value * 10) / 10 : Math.round(value);
-    return `${rounded.toLocaleString('en-US')} ${unit}`;
-  }
+  readonly show = formatAmount;
 
   readonly ingredientGroups = computed(() => groupBySection(this.recipe()?.ingredients ?? []));
   readonly stepGroups = computed(() => groupBySection(this.recipe()?.steps ?? []));

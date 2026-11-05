@@ -5,6 +5,7 @@ import type { StoredImage, UploadType } from './images.ts';
 import type { Recipe, RecipeDraft } from './types.ts';
 import type { Source, SourceIcon, SourceInput } from './sources.ts';
 import { fromStorage, SourceNameTakenError, UsernameTakenError } from './stores.ts';
+import type { MacroTarget } from './macroTargets.ts';
 import type { ImageStore, RecipeStore, SessionRecord, SessionStore, SourceStore, Stores, Theme, User, UserStore } from './stores.ts';
 
 /**
@@ -26,6 +27,7 @@ interface UserDoc {
   createdAt: string;
   theme?: Theme;
   hideImagesIn?: Theme[];
+  macroTargets?: MacroTarget[];
 }
 
 interface SessionDoc {
@@ -84,6 +86,7 @@ class MongoUserStore implements UserStore {
       createdAt: doc.createdAt,
       ...(doc.theme ? { theme: doc.theme } : {}),
       ...(doc.hideImagesIn ? { hideImagesIn: doc.hideImagesIn } : {}),
+      ...(doc.macroTargets ? { macroTargets: doc.macroTargets } : {}),
     };
   }
 
@@ -121,6 +124,11 @@ class MongoUserStore implements UserStore {
 
   async setHideImagesIn(id: string, themes: Theme[]): Promise<boolean> {
     const result = await this.col.updateOne({ _id: id }, { $set: { hideImagesIn: themes } });
+    return result.matchedCount === 1;
+  }
+
+  async setMacroTargets(id: string, targets: MacroTarget[]): Promise<boolean> {
+    const result = await this.col.updateOne({ _id: id }, { $set: { macroTargets: targets } });
     return result.matchedCount === 1;
   }
 }

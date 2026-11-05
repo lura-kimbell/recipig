@@ -3,6 +3,7 @@ import type { Recipe, RecipeDraft } from './types.ts';
 import type { StoredImage } from './images.ts';
 import type { Source, SourceInput } from './sources.ts';
 import { fromStorage, SourceNameTakenError, UsernameTakenError } from './stores.ts';
+import type { MacroTarget } from './macroTargets.ts';
 import type { ImageStore, RecipeStore, SessionRecord, SessionStore, SourceStore, Stores, Theme, User, UserStore } from './stores.ts';
 
 /** In-memory stand-ins for the Mongo stores. Used by the tests; nothing is saved to disk. */
@@ -38,6 +39,12 @@ class MemoryUserStore implements UserStore {
   async setHideImagesIn(id: string, themes: Theme[]): Promise<boolean> {
     const found = this.users.find((u) => u.id === id);
     if (found) found.hideImagesIn = [...themes];
+    return found !== undefined;
+  }
+
+  async setMacroTargets(id: string, targets: MacroTarget[]): Promise<boolean> {
+    const found = this.users.find((u) => u.id === id);
+    if (found) found.macroTargets = targets.map((t) => ({ ...t }));
     return found !== undefined;
   }
 }

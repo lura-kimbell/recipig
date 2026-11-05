@@ -1,4 +1,6 @@
 import type { StoredImage } from './images.ts';
+import { cleanMacroTargets } from './macroTargets.ts';
+import type { MacroTarget } from './macroTargets.ts';
 import type { Source, SourceInput } from './sources.ts';
 import { RECIPE_TAGS, canonicalTag } from './tags.ts';
 import type { Recipe, RecipeDraft } from './types.ts';
@@ -19,6 +21,8 @@ export interface User {
   theme?: Theme;
   /** Themes in which they've chosen to hide recipe photos; absent means DEFAULT_HIDE_IMAGES_IN. */
   hideImagesIn?: Theme[];
+  /** Daily nutrition goals; absent means none set. */
+  macroTargets?: MacroTarget[];
 }
 
 /** The app's looks. The first is the default. */
@@ -35,6 +39,7 @@ export interface PublicUser {
   username: string;
   theme: Theme;
   hideImagesIn: Theme[];
+  macroTargets: MacroTarget[];
 }
 
 export const toPublicUser = (user: User): PublicUser => ({
@@ -43,6 +48,7 @@ export const toPublicUser = (user: User): PublicUser => ({
   // A theme that has since been removed falls back to the default.
   theme: isTheme(user.theme) ? user.theme : THEMES[0],
   hideImagesIn: (user.hideImagesIn ?? DEFAULT_HIDE_IMAGES_IN).filter(isTheme),
+  macroTargets: cleanMacroTargets(user.macroTargets),
 });
 
 /**
@@ -110,6 +116,8 @@ export interface UserStore {
   setTheme(id: string, theme: Theme): Promise<boolean>;
   /** Saves the themes in which the user hides recipe photos; false if there is no such user. */
   setHideImagesIn(id: string, themes: Theme[]): Promise<boolean>;
+  /** Saves the user's daily macro targets (the whole list); false if there is no such user. */
+  setMacroTargets(id: string, targets: MacroTarget[]): Promise<boolean>;
 }
 
 export interface SessionStore {

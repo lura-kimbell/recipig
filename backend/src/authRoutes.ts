@@ -13,6 +13,7 @@ import {
   SESSION_DAYS,
   sessionCookie,
 } from './session.ts';
+import { parseMacroTargets } from './macroTargets.ts';
 import { isTheme, THEMES, toPublicUser } from './stores.ts';
 import type { PublicUser, Stores } from './stores.ts';
 import { ValidationError } from './validate.ts';
@@ -153,6 +154,14 @@ export function createAuth(stores: Stores, options: AuthOptions = {}) {
     const user = currentUser(res);
     await stores.users.setHideImagesIn(user.id, hideImagesIn);
     res.json({ ...user, hideImagesIn });
+  });
+
+  /** Saves the daily macro targets (the whole list, replacing the old one; [] clears them). */
+  router.put('/macro-targets', requireUser, async (req, res) => {
+    const macroTargets = parseMacroTargets(req.body?.targets);
+    const user = currentUser(res);
+    await stores.users.setMacroTargets(user.id, macroTargets);
+    res.json({ ...user, macroTargets });
   });
 
   return { router, loadUser, requireUser };

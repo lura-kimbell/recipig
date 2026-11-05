@@ -52,6 +52,20 @@ export function runStoreContract(name: string, open: () => Promise<{ stores: Sto
     assert.equal(await users.setHideImagesIn('nope', ['aurora']), false);
   });
 
+  t("a user's macro targets are saved and come back with the user", async ({ users }) => {
+    const a = await users.create('Alice', 'hash');
+    assert.equal((await users.findById(a.id))?.macroTargets, undefined);
+    const targets = [
+      { nutrient: 'calories', direction: 'atMost', amount: 2500 },
+      { nutrient: 'protein', direction: 'atLeast', amount: 100 },
+    ] as const;
+    assert.equal(await users.setMacroTargets(a.id, targets.map((t) => ({ ...t }))), true);
+    assert.deepEqual((await users.findById(a.id))?.macroTargets, targets);
+    assert.equal(await users.setMacroTargets(a.id, []), true);
+    assert.deepEqual((await users.findByUsername('alice'))?.macroTargets, []);
+    assert.equal(await users.setMacroTargets('nope', []), false);
+  });
+
   t('sessions can be created, found, and deleted', async ({ sessions }) => {
     const expiresAt = new Date(Date.now() + 60_000);
     await sessions.create('hash1', 'user1', expiresAt);
