@@ -494,3 +494,14 @@ export function buildDraft(
   const tags = detectTags(details.title, ingredients.map((i) => i.text));
   return { ...details, ...(tags.length > 0 ? { tags } : {}), ingredients, steps };
 }
+
+/**
+ * The address a saved or copied page says it lives at (its canonical link, else og:url), so a
+ * pasted page source can be labelled with where it came from. Unchecked: callers keep only
+ * http(s) addresses, and nothing is fetched from it.
+ */
+export function pastedPageUrl(html: string): string | undefined {
+  const $ = cheerio.load(html);
+  const found = $('link[rel~="canonical"]').attr('href') ?? $('meta[property="og:url"]').attr('content');
+  return found?.trim() || undefined;
+}

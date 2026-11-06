@@ -2,7 +2,7 @@ import express from 'express';
 import type { NextFunction, Request, Response } from 'express';
 import fs from 'node:fs';
 import path from 'node:path';
-import { extractRecipe, NoRecipeError } from './extract.ts';
+import { extractRecipe, NoRecipeError, pastedPageUrl } from './extract.ts';
 import { fetchPage, FetchError, UrlError } from './fetchPage.ts';
 import type { FetchedPage } from './fetchPage.ts';
 import { AuthError, createAuth, currentUser, RateLimitError } from './authRoutes.ts';
@@ -86,7 +86,10 @@ export function createApp(stores: Stores, options: AppOptions = {}) {
   // Photos get a bigger allowance, but only once the user is known (see the photo import route).
   const json = express.json({ limit: '1mb' });
   const photoJson = express.json({ limit: '15mb' });
-  app.use((req, res, next) => (req.path === '/api/recipes/import-photos' ? next() : json(req, res, next)));
+  // A pasted page source; recipe pages with all their scripts run to a few hundred KB.
+  const pageJson = express.json({ limit: '6mb' });
+  const ownLimit = new Set(['/api/recipes/import-photos', '/api/recipes/import-html']);
+  app.use((req, res, next) => (ownLimit.has(req.path) ? next() : json(req, res, next)));
 
   // API answers belong to one logged-in person, so browsers and proxies shouldn't keep copies.
   app.use('/api', (_req, res, next) => {
@@ -124,6 +127,25 @@ export function createApp(stores: Stores, options: AppOptions = {}) {
     const { html, finalUrl } = await getPage(url.trim());
     const draft = extractRecipe(html, finalUrl);
     res.status(201).json(await store.create(currentUser(res).id, draft));
+  });
+
+  // A recipe page the cook copied from their own browser (View Source, select all, copy), for
+  // sites that turn the importer away. Read the same way as a fetched page and saved. Nothing
+  // the page links to is fetched; its address only labels the recipe.
+  app.post('/api/recipes/import-html', pageJson, async (req, res) => {
+    const html: unknown = req.body?.html;
+    if (typeof html !== 'string' || !html.trim()) {
+      res.status(400).json({ error: 'Paste the page source first.' });
+      return;
+    }
+    const given: unknown = req.body?.url;
+    if (given !== undefined && given !== null && typeof given !== 'string') throw new ValidationError('url must be text.');
+    const sourceUrl = pageAddress(given?.trim() || undefined) ?? pageAddress(pastedPageUrl(html));
+    if (given?.trim() && !sourceUrl) throw new ValidationError("That doesn't look like a valid link.");
+    const userId = currentUser(res).id;
+    // Pasted content goes through the same checks as a recipe typed into the editor.
+    const draft = parseRecipeInput(extractRecipe(html, sourceUrl));
+    res.status(201).json(await store.create(userId, draft));
   });
 
   // Photos of a cookbook recipe, read by Claude. Returns an unsaved draft for the editor;
@@ -272,6 +294,10 @@ export function createApp(stores: Stores, options: AppOptions = {}) {
     } else if (err instanceof FetchError) {
       status = 502;
       message = err.message;
+      if (err.blocked) {
+        res.status(status).json({ error: message, blocked: true });
+        return;
+      }
     } else if (err instanceof PhotoReadError) {
       status = err.status;
       message = err.message;
@@ -286,4 +312,15 @@ export function createApp(stores: Stores, options: AppOptions = {}) {
   });
 
   return app;
+}
+
+/** An http(s) address, normalised; undefined for anything else. */
+function pageAddress(value: string | undefined): string | undefined {
+  if (!value) return undefined;
+  try {
+    const url = new URL(value);
+    return url.protocol === 'http:' || url.protocol === 'https:' ? url.toString() : undefined;
+  } catch {
+    return undefined;
+  }
 }

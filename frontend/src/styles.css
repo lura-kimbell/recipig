@@ -1727,6 +1727,34 @@ details summary {
 .import-dialog {
   width: min(34rem, calc(100vw - 2rem));
 }
+.import-dialog .actions {
+  flex-wrap: wrap;
+  align-items: center;
+}
+.import-dialog .push-left {
+  margin-right: auto;
+}
+.paste-steps {
+  margin: 0.4rem 0 0.6rem;
+  padding-left: 1.3rem;
+  line-height: 1.6;
+}
+.paste-steps kbd {
+  padding: 0 0.35em;
+  font: 700 0.85em var(--font-body);
+  background: var(--cloud);
+  border: var(--border-w-hair) var(--line) var(--outline);
+  border-radius: 0.4em;
+}
+.paste-form {
+  display: grid;
+  gap: 0.8rem;
+}
+.paste-box {
+  font-size: 0.8rem;
+  line-height: 1.4;
+  resize: vertical;
+}
 .dialog::backdrop {
   background: rgb(10 12 20 / 0.55);
 }

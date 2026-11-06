@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import type { AddressInfo } from 'node:net';
 import test from 'node:test';
 import { createApp } from '../src/app.ts';
-import { FetchError } from '../src/fetchPage.ts';
+import { errorForStatus, FetchError } from '../src/fetchPage.ts';
 import { createMemoryStores } from '../src/memoryStores.ts';
 import type { PhotoReader } from '../src/photoImport.ts';
 import { BLOG_PAGE, NO_RECIPE_PAGE } from './fixtures.ts';
@@ -102,6 +102,61 @@ test('import reports problems with sensible status codes', async () => {
       assert.equal((await call('POST', '/api/recipes/import', { url: 'https://missing.example/' })).status, 502);
     },
   );
+});
+
+test('a site that turns the importer away gets a message saying so', async () => {
+  await withServer(
+    async () => {
+      throw errorForStatus(403, new Headers({ server: 'cloudflare' }));
+    },
+    async (call) => {
+      const res = await call('POST', '/api/recipes/import', { url: 'https://blocked.example/recipe' });
+      assert.equal(res.status, 502);
+      assert.equal(res.json.blocked, true);
+      assert.match(res.json.error, /Paste the page/);
+    },
+  );
+});
+
+test('a pasted page source is read like a fetched page and saved', async () => {
+  const fetched: string[] = [];
+  const noFetch = async (url: string) => {
+    fetched.push(url);
+    throw new FetchError('should not fetch');
+  };
+  await withServer(noFetch, async (call) => {
+    const withLink = await call('POST', '/api/recipes/import-html', { html: BLOG_PAGE, url: ' https://blog.example.com/scramble ' });
+    assert.equal(withLink.status, 201);
+    assert.equal(withLink.json.title, 'Cheesy Scrambled Eggs');
+    assert.equal(withLink.json.sourceUrl, 'https://blog.example.com/scramble');
+    assert.equal(withLink.json.steps[1].ingredientIds.length, 2);
+    assert.equal((await call('GET', `/api/recipes/${withLink.json.id}`)).status, 200);
+
+    // Without a link, the page's own canonical address labels it; anything but http(s) is dropped.
+    const canonical = BLOG_PAGE.replace('<head>', '<head><link rel="canonical" href="https://blog.example.com/eggs">');
+    assert.equal((await call('POST', '/api/recipes/import-html', { html: canonical })).json.sourceUrl, 'https://blog.example.com/eggs');
+    const sneaky = BLOG_PAGE.replace('<head>', '<head><link rel="canonical" href="javascript:alert(1)">');
+    const unlabelled = await call('POST', '/api/recipes/import-html', { html: sneaky });
+    assert.equal(unlabelled.status, 201);
+    assert.equal(unlabelled.json.sourceUrl, undefined);
+
+    assert.deepEqual(fetched, []);
+  });
+});
+
+test('pasted page import checks its input, needs a login, and allows page-sized requests', async () => {
+  await withServer(okPage, async (call, newClient) => {
+    assert.equal((await call('POST', '/api/recipes/import-html', {})).status, 400);
+    assert.equal((await call('POST', '/api/recipes/import-html', { html: '   ' })).status, 400);
+    assert.equal((await call('POST', '/api/recipes/import-html', { html: BLOG_PAGE, url: 'ftp://x.example/' })).status, 400);
+    assert.equal((await call('POST', '/api/recipes/import-html', { html: BLOG_PAGE, url: 42 })).status, 400);
+    assert.equal((await call('POST', '/api/recipes/import-html', { html: NO_RECIPE_PAGE })).status, 422);
+    assert.equal((await newClient()('POST', '/api/recipes/import-html', { html: BLOG_PAGE })).status, 401);
+    // A real page source with its scripts runs to hundreds of KB; other routes keep the 1 MB limit.
+    const padded = BLOG_PAGE.replace('</body>', `<script>${'x'.repeat(2 * 1024 * 1024)}</script></body>`);
+    assert.equal((await call('POST', '/api/recipes/import-html', { html: padded })).status, 201);
+    assert.equal((await call('POST', '/api/recipes', { title: padded, ingredients: [], steps: [] })).status, 413);
+  });
 });
 
 test('rejects invalid recipe updates and unknown ids', async () => {

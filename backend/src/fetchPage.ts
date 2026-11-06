@@ -4,7 +4,26 @@ import net from 'node:net';
 /** The URL the user gave is unusable (bad syntax, wrong scheme, or not a public address). */
 export class UrlError extends Error {}
 /** The page could not be downloaded. */
-export class FetchError extends Error {}
+export class FetchError extends Error {
+  /** The site refused automated requests (bot protection), so pasting the page is the way in. */
+  blocked = false;
+}
+
+/**
+ * The error for a page that didn't load. A 401/403, or a Cloudflare challenge on any status,
+ * means the site turns away automated readers like this one; the cook can still bring the
+ * page from their own browser (POST /api/recipes/import-html) or photograph it.
+ */
+export function errorForStatus(status: number, headers: Headers): FetchError {
+  if (status === 401 || status === 403 || headers.has('cf-mitigated')) {
+    const err = new FetchError(
+      "That site doesn't let Recipig read its pages. Paste the page instead, or use New Recipe → From Photos.",
+    );
+    err.blocked = true;
+    return err;
+  }
+  return new FetchError(`That site responded with an error (${status}).`);
+}
 
 const MAX_BYTES = 5 * 1024 * 1024;
 const MAX_REDIRECTS = 5;
@@ -131,7 +150,7 @@ export async function fetchPage(rawUrl: string): Promise<FetchedPage> {
     }
     if (!res.ok) {
       await res.body?.cancel();
-      throw new FetchError(`That site responded with an error (${res.status}).`);
+      throw errorForStatus(res.status, res.headers);
     }
 
     const type = res.headers.get('content-type') ?? '';

@@ -29,6 +29,11 @@ export class RecipeService {
     return this.http.post<Recipe>('/api/recipes/import', { url });
   }
 
+  /** Reads and saves a recipe from a page source the cook copied from their browser. */
+  importFromHtml(html: string, url?: string) {
+    return this.http.post<Recipe>('/api/recipes/import-html', { html, ...(url ? { url } : {}) });
+  }
+
   /** Reads a recipe from photos; returns an unsaved draft for the editor. */
   importFromPhotos(photos: PhotoUpload[]) {
     return this.http.post<RecipeDraft>('/api/recipes/import-photos', { photos });
