@@ -39,10 +39,21 @@ const toArray = (v: unknown): unknown[] => (Array.isArray(v) ? v : v == null ? [
 // Text helpers
 // ---------------------------------------------------------------------------
 
-/** HTML (or plain text with entities) to plain text, turning block ends and <br> into newlines. */
+/** Text that still holds an HTML tag or comment (not "< 5 min" or "a<b"). */
+const LOOKS_LIKE_MARKUP = /<(?:\/?[a-z][a-z0-9]*(?:\s[^<>]*)?\/?|!--[\s\S]*?--)>/i;
+
+/**
+ * HTML (or plain text with entities) to plain text, turning block ends and <br> into newlines.
+ * Some sites escape the markup inside their recipe data (`&lt;img …&gt;`, Maangchi's step photos),
+ * so text that still holds tags after decoding is read once more.
+ */
 function htmlToText(s: string): string {
-  const withBreaks = s.replace(/<\/(p|li|div|h[1-6])>|<br\s*\/?>/gi, '\n');
-  return cheerio.load(`<body>${withBreaks}</body>`)('body').text();
+  const once = (h: string): string => {
+    const withBreaks = h.replace(/<\/(p|li|div|h[1-6])>|<br\s*\/?>/gi, '\n');
+    return cheerio.load(`<body>${withBreaks}</body>`)('body').text();
+  };
+  const decoded = once(s);
+  return LOOKS_LIKE_MARKUP.test(decoded) ? once(decoded) : decoded;
 }
 
 const squash = (s: string): string => s.replace(/\s+/g, ' ').trim();

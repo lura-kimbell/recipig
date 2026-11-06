@@ -245,3 +245,25 @@ test('recipePhoto only claims photos the page offers for the recipe', () => {
   assert.equal(photo.offers('https://cdn.example.com/step-1-2400x1600.jpg'), false); // a step photo
   assert.equal(photo.offers('https://my-photos.example.com/my-own-corn.jpg'), false); // chosen by the cook
 });
+
+test('drops markup a site escaped inside its step text (Maangchi step photos)', () => {
+  const recipe = {
+    '@context': 'https://schema.org',
+    '@type': 'Recipe',
+    name: 'Shrimp mandu',
+    recipeIngredient: ['1 cup shrimp', '1 cup Asian chives', '1 tablespoon potato starch'],
+    recipeInstructions: [
+      {
+        '@type': 'HowToStep',
+        text: 'Combine shrimp and chives in a bowl and mix well. &lt;img decoding="async" class="aligncenter" src="https://example.com/mandu-filling-590x332.jpg" alt="mandu filling" width="590" height="332"/&gt;',
+      },
+      { '@type': 'HowToStep', text: 'Fold the mandu.&lt;br /&gt;Steam for 8 minutes.' },
+      { '@type': 'HowToStep', text: 'Serve with soy sauce (use &lt; 1 tablespoon each) &amp; vinegar.' },
+    ],
+  };
+  const html = `<html><head><script type="application/ld+json">${JSON.stringify(recipe)}</script></head><body></body></html>`;
+  assert.deepEqual(
+    extractRecipe(html).steps.map((s) => s.text),
+    ['Combine shrimp and chives in a bowl and mix well.', 'Fold the mandu.', 'Steam for 8 minutes.', 'Serve with soy sauce (use < 1 tablespoon each) & vinegar.'],
+  );
+});
