@@ -154,6 +154,11 @@
   --field-border-color: var(--outline);
   --field-pad: 0.6rem 0.85rem;
   --field-focus-ring: 0 0 0 4px var(--focus);
+  /* The drop-down arrow on <select>s: a chevron in a little butter bubble. An image, so its
+     colours are written into it; each theme draws its own. */
+  --select-arrow: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 28 28'%3E%3Ccircle cx='14' cy='14' r='12' fill='%23fff0b3' stroke='%23e2cfae' stroke-width='2'/%3E%3Cpath d='M9.5 12.5 14 17l4.5-4.5' fill='none' stroke='%235a4535' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  --select-arrow-size: 1.6rem;
+  --select-arrow-inset: 0.5rem;
   --edit-step-border: var(--border-w-control) dashed var(--outline);
   --edit-step-divider: var(--edit-step-border);
   --edit-step-pad: 0.8rem;
@@ -203,6 +208,7 @@
   --lilac: #34295e;
   --blossom: #55203f;
   --mint: #144436;
+  --select-arrow: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 28 28'%3E%3Ccircle cx='14' cy='14' r='12' fill='%2334295e' stroke='%232c3870' stroke-width='2'/%3E%3Cpath d='M9.5 12.5 14 17l4.5-4.5' fill='none' stroke='%237dffc8' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
   --wheat: #4a3a1f;
   --aqua: #3a4419;
   --coral: #5a2a25;
@@ -376,6 +382,10 @@
   --field-border-color: var(--outline-dim);
   --field-pad: 0.35rem 0.2rem;
   --field-focus-ring: none;
+  /* A plain green triangle, like a terminal menu's */
+  --select-arrow: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 28 28'%3E%3Cpath d='M8 11h12l-6 7z' fill='%233cff6e'/%3E%3C/svg%3E");
+  --select-arrow-size: 1.1rem;
+  --select-arrow-inset: 0;
   --edit-step-border: none;
   --edit-step-divider: 1px dashed var(--outline-dim);
   --edit-step-pad: 0.9rem 0 0.3rem;
@@ -1056,6 +1066,16 @@ textarea:focus {
   outline: none;
   border-color: var(--leaf);
   box-shadow: var(--field-focus-ring);
+}
+/* The browser's own arrow sits hard against the rounded corner; draw the theme's instead. */
+select {
+  appearance: none;
+  padding-right: calc(var(--select-arrow-inset) + var(--select-arrow-size) + 0.5rem);
+  cursor: pointer;
+  background-image: var(--select-arrow);
+  background-repeat: no-repeat;
+  background-position: right var(--select-arrow-inset) center;
+  background-size: var(--select-arrow-size);
 }
 ::placeholder {
   color: var(--bark-soft);
