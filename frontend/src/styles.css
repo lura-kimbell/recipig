@@ -39,6 +39,9 @@
   --lilac: #e4dcf7;
   --blossom: #ffd5e1;
   --mint: #cdeedb;
+  --wheat: #f1dfc4;
+  --aqua: #c5ece8;
+  --coral: #ffc9bf;
   --chip: rgb(255 255 255 / 0.7);
 
   /* Primary button */
@@ -200,6 +203,9 @@
   --lilac: #34295e;
   --blossom: #55203f;
   --mint: #144436;
+  --wheat: #4a3a1f;
+  --aqua: #3a4419;
+  --coral: #5a2a25;
   --chip: rgb(255 255 255 / 0.1);
 
   --primary: #3cf0aa;
@@ -294,6 +300,9 @@
   --lilac: #1f1f1f;
   --blossom: #1f1f1f;
   --mint: #1f1f1f;
+  --wheat: #1f1f1f;
+  --aqua: #1f1f1f;
+  --coral: #1f1f1f;
   /* Info pills ("2 ingredients", counts) are plain green text, no box */
   --chip: transparent;
 
@@ -724,6 +733,14 @@ h3 {
   --tag-bg: var(--butter);
   --tag-icon: url('/tag-icons/chicken.svg');
 }
+.tag-pill[data-tag='Turkey'] {
+  --tag-bg: var(--wheat);
+  --tag-icon: url('/tag-icons/turkey.svg');
+}
+.tag-pill[data-tag='Duck'] {
+  --tag-bg: var(--aqua);
+  --tag-icon: url('/tag-icons/duck.svg');
+}
 .tag-pill[data-tag='Beef'] {
   --tag-bg: var(--blossom);
   --tag-icon: url('/tag-icons/beef.svg');
@@ -736,6 +753,10 @@ h3 {
   --tag-bg: var(--sky);
   --tag-icon: url('/tag-icons/fish.svg');
 }
+.tag-pill[data-tag='Shellfish'] {
+  --tag-bg: var(--coral);
+  --tag-icon: url('/tag-icons/shellfish.svg');
+}
 .tag-pill[data-tag='Vegetarian'] {
   --tag-bg: var(--mint);
   --tag-icon: url('/tag-icons/vegetarian.svg');
@@ -744,7 +765,7 @@ h3 {
 .tag-pill.source-pill {
   --tag-bg: var(--lilac);
 }
-/* MingCute line icons (public/tag-icons), used as a mask so they take the text colour. */
+/* Line icons (public/tag-icons, mostly MingCute), used as a mask so they take the text colour. */
 .tag-icon {
   flex: none;
   width: 1.15em;

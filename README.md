@@ -13,7 +13,7 @@ A personal recipe app. Paste a link to a recipe and Recipig saves just the recip
 - **Sections.** Ingredients and steps can be grouped under labels such as "Brine" or "Sauce". Imports keep the page's labels; in the editor, type a label in an item's Section box (items with the same label are grouped).
 - **Edit.** Change the title, source, link, image, times, ingredients, steps and sections; add, remove and reorder ingredients and steps. For the photo, upload one from your phone or computer (Upload photo; on a phone you can take one there and then), or paste a link to a picture instead. Uploads are shrunk on your device first and kept in the database; only you can see them. The Link is the page a recipe was imported from. In each step's "Ingredients shown with this step" list, an ingredient's section appears as a small tag beside its name.
 - **Batch size.** Buttons at the top of a recipe (0.5x, 1x, 2x, 3x, 4x) scale every ingredient amount (halving gives fractions: 1 egg becomes 1/2 egg, 2 cups becomes 1 cup), both in the ingredient list and in each step's ingredient reminder. Fractions stay fractions (3/4 cup doubled is 1 1/2 cups) and units follow along (1 cup becomes 2 cups, 1 egg becomes 2 eggs). Servings scale too. Your saved recipe is never changed.
-- **Tags.** Recipes can be tagged by main ingredient: Poultry (chicken, turkey, duck, goose, quail and other birds), Beef, Pork, Fish or Vegetarian. Imports guess the tags from the title and ingredients; change them in the editor. The recipe list can be filtered by tag, cards show the tag icons, and the recipe page shows the tags beside the times.
+- **Tags.** Recipes can be tagged by main ingredient: Poultry (chicken, goose, quail and other birds), Turkey, Duck, Beef, Pork, Fish, Shellfish (shrimp, crab, mussels, squid and so on) or Vegetarian. Imports guess the tags from the title and ingredients; change them in the editor. The recipe list can be filtered by tag, cards show the tag icons, and the recipe page shows the tags beside the times.
 - **Nutrition estimate.** The recipe page estimates calories, protein, carbohydrates (fiber, sugar), fat and sodium from the ingredient list, per serving and for the whole batch (it follows the batch size). Lines without an amount, or with a food that isn't in the built-in table, are listed as not counted.
 - **Themes.** The account menu (your name in the header) has **Change theme**: Friendly (the default pastel village), Aurora (northern lights over a starry sky) or Terminal (green-on-dark monospace). Your choice is saved to your account, so it follows you to other devices. The same panel can hide recipe photos (on the list and recipe pages) for each theme separately, so you could have photos in Friendly but a cleaner Terminal. Terminal starts with photos hidden; tick the box off to bring them back.
 - **Shopping checkboxes.** Tick off ingredients as you buy them; ticks are saved.
@@ -102,6 +102,17 @@ npm run refresh-images
 
 It reads each recipe's source page again and only replaces a photo that came from that page; a photo you set yourself is left alone. Set `MONGODB_URI` to run it against the hosted database.
 
+### Turkey, Duck and Shellfish tags for older recipes
+
+Turkey and duck used to be tagged Poultry, and shellfish Fish. To move recipes saved before those tags existed, run (add `--dry-run` first to see what would change):
+
+```bash
+cd backend
+npm run retag
+```
+
+It only looks at recipes tagged Poultry or Fish, adds Turkey, Duck or Shellfish where the title or ingredients name them, and keeps Poultry or Fish only when there's chicken (or another bird) or fish as well. Your other tags are left alone. Set `MONGODB_URI` to run it against the hosted database.
+
 ## Tests
 
 ```bash
@@ -132,7 +143,7 @@ backend/    Express + TypeScript API
   scripts/importJson.ts  move an old recipes.json into an account
 frontend/   Angular app (standalone components, signals)
   src/app/nutrition.ts, nutrition-data.ts  nutrition estimate and food table
-  public/tag-icons/  tag icons (MingCute, Apache 2.0)
+  public/tag-icons/  tag icons (mostly MingCute; see its README for sources and licences)
   public/source-icons/  icons to pick for a source (MingCute, Apache 2.0)
 render.yaml  Render Blueprint for hosting
 ```

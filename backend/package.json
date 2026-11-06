@@ -8,7 +8,8 @@
     "test": "node --import tsx --test test/*.test.ts",
     "typecheck": "tsc --noEmit",
     "import-json": "tsx scripts/importJson.ts",
-    "refresh-images": "tsx scripts/refreshImages.ts"
+    "refresh-images": "tsx scripts/refreshImages.ts",
+    "retag": "tsx scripts/retag.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^1.3.0",
